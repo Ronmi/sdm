@@ -1,6 +1,6 @@
 build:
   image: golang:1.6
   commands:
-    - go get -t
-    - go build
-    - go test
+    - go get -t -v
+    - go build -v
+    - go test -v
