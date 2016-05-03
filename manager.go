@@ -1,0 +1,158 @@
+package sdm
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"reflect"
+	"sync"
+)
+
+// Rows proxies all needed methods of sql.Rows
+type Rows struct {
+	*sql.Rows
+	fields  map[string]int
+	columns []string
+	e       error
+	t       reflect.Type
+}
+
+func (r *Rows) err(msg string) error {
+	r.e = errors.New(msg)
+	return r.e
+}
+
+func (r *Rows) errf(msg string, args ...interface{}) error {
+	r.e = fmt.Errorf(msg, args...)
+	return r.e
+}
+
+// Scan reads columns into fields
+func (r *Rows) Scan(data interface{}) (err error) {
+	if err = r.e; err != nil {
+		return
+	}
+
+	vstruct := reflect.ValueOf(data)
+	if k := vstruct.Kind(); k != reflect.Ptr && k != reflect.Interface {
+		return r.err("sdm: need reference to change data")
+	}
+	vstruct = vstruct.Elem()
+	if t := vstruct.Type(); t != r.t {
+		return r.errf("sdm: type mismatch, need %s but got %s", r.t.String(), t.String())
+	}
+
+	for _, col := range r.columns {
+		if _, ok := r.fields[col]; !ok {
+			return r.errf("sdm: column %s not in struct", col)
+		}
+	}
+
+	holders := make([]interface{}, len(r.columns))
+	for idx, col := range r.columns {
+		vf := vstruct.Field(r.fields[col])
+		vfa := vf.Addr()
+		holders[idx] = vfa.Interface()
+	}
+
+	r.e = r.Rows.Scan(holders...)
+	return r.e
+}
+
+// Err proxies sql.Rows.Close
+func (r *Rows) Err() error {
+	if r.e == nil {
+		r.e = r.Rows.Err()
+	}
+	return r.e
+}
+
+// Columns proxies sql.Rows.Columns
+func (r *Rows) Columns() ([]string, error) {
+	return r.columns, r.e
+}
+
+// Manager is just manager. any question?
+type Manager struct {
+	mappings map[reflect.Type]map[string]int
+	lock     sync.Mutex
+}
+
+// New create sdm manager
+func New() *Manager {
+	return &Manager{
+		map[reflect.Type]map[string]int{},
+		sync.Mutex{},
+	}
+}
+
+func (m *Manager) getMap(t reflect.Type) (ret map[string]int, err error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	ret, ok := m.mappings[t]
+	if ok {
+		return
+	}
+
+	ret = make(map[string]int)
+
+	if t.Kind() != reflect.Struct {
+		return ret, fmt.Errorf("sdm: %s is not a struct type", t.String())
+	}
+
+	for idx := 0; idx < t.NumField(); idx++ {
+		f := t.Field(idx)
+		tag := f.Tag.Get("sdm")
+		if tag == "" {
+			// not decorated, skip
+			continue
+		}
+
+		if f.Name[0] < 'A' || f.Name[0] > 'Z' {
+			// not exported, skip
+			continue
+		}
+
+		ret[tag] = idx
+	}
+
+	return
+}
+
+// Proxify proxies needed methods of sql.Rows
+func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
+	t := reflect.TypeOf(data)
+	f, e := m.getMap(t)
+	c, err := r.Columns()
+	if e == nil {
+		e = err
+	}
+
+	return &Rows{
+		r,
+		f,
+		c,
+		e,
+		t,
+	}
+}
+
+// Col returns a list of columns in sql format
+func (m *Manager) Col(data interface{}, table string) (ret []string, err error) {
+	f, err := m.getMap(reflect.TypeOf(data))
+	if err != nil {
+		return
+	}
+	ret = make([]string, 0, len(f))
+
+	for col := range f {
+		c := col
+		if table != "" {
+			c = table + "." + c
+		}
+		ret = append(ret, c)
+	}
+
+	return
+}
