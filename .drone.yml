@@ -1,14 +1,6 @@
-script:
-  build1.6:
-    image: golang:1.6
-    commands:
-      - go get
-      - go build
-      - go test
-
-  build1.5:
-    image: golang:1.5
-    commands:
-      - go get
-      - go build
-      - go test
+build:
+  image: golang:1.6
+  commands:
+    - go get
+    - go build
+    - go test
