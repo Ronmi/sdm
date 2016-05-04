@@ -17,6 +17,12 @@ type testok struct {
 	ExportTime   time.Time `sdm:"t"`
 }
 
+type testai struct {
+	ExportInt    int       `sdm:"eint,ai"`
+	ExportString string    `sdm:"estr"`
+	ExportTime   time.Time `sdm:"t"`
+}
+
 var db *sql.DB
 
 func init() {
@@ -26,7 +32,12 @@ func init() {
 	}
 	db = conn
 
-	s := `CREATE TABLE testok (eint int, estr varchar(10), t datetime)`
+	s := `CREATE TABLE testai (eint int AUTO_INCREMENT, estr varchar(10), t datetime)`
+	if _, err := db.Exec(s); err != nil {
+		log.Fatalf("Cannot create table testai: %s", err)
+	}
+
+	s = `CREATE TABLE testok (eint int, estr varchar(10), t datetime)`
 	if _, err := db.Exec(s); err != nil {
 		log.Fatalf("Cannot create table testok: %s", err)
 	}
@@ -144,5 +155,24 @@ func TestDelete(t *testing.T) {
 	}
 	if cnt != 0 {
 		t.Errorf("There should be only one result after deleting, but we got %d", cnt)
+	}
+}
+
+func TestInsertAI(t *testing.T) {
+	m := New()
+	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+	data := testok{ExportString: "insert", ExportTime: ti}
+
+	if _, err := m.Insert(db, "testai", data); err != nil {
+		t.Fatalf("Error inserting ai data: %s", err)
+	}
+
+	var cnt int
+	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
+	if err := row.Scan(&cnt); err != nil {
+		t.Fatalf("Cannot scan COUNT(eint) for ai insert: %s", err)
+	}
+	if cnt != 1 {
+		t.Errorf("There should be only one result after ai inserting, but we got %d", cnt)
 	}
 }
