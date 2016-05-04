@@ -178,6 +178,9 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 func (m *Manager) Insert(db *sql.DB, table string, data interface{}) (res sql.Result, err error) {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	def, err := m.getMap(val.Type())
+	if err != nil {
+		return nil, err
+	}
 
 	cols := make([]string, 0, len(def))
 	vals := make([]interface{}, 0, len(def))
