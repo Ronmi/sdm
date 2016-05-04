@@ -81,21 +81,21 @@ func TestScanOK(t *testing.T) {
 	}
 }
 
-// func TestInsert(t *testing.T) {
-// 	m := New()
-// 	t, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-// 	data := testok{1, 2, 3, "test1", t}
+func TestInsert(t *testing.T) {
+	m := New()
+	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+	data := testok{1, 2, 3, "test1", ti}
 
-// 	if err := m.Insert(db, "testok", data); err != nil {
-// 		t.Fatalf("Error inserting data: %s", err)
-// 	}
+	if _, err := m.Insert(db, "testok", data); err != nil {
+		t.Fatalf("Error inserting data: %s", err)
+	}
 
-// 	var cnt int
-// 	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="test1" AND t="2016-05-04 00:00:00"`)
-// 	if err := row.Scan(&cnt); err != nil {
-// 		t.Fatalf("Cannot scan COUNT(eint): %s", err)
-// 	}
-// 	if cnt != 1 {
-// 		t.Errorf("There should be only one result, but we got %d", cnt)
-// 	}
-// }
+	var cnt int
+	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="test1" AND strftime("%s", t)="1462320000"`)
+	if err := row.Scan(&cnt); err != nil {
+		t.Fatalf("Cannot scan COUNT(eint): %s", err)
+	}
+	if cnt != 1 {
+		t.Errorf("There should be only one result, but we got %d", cnt)
+	}
+}

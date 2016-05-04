@@ -172,3 +172,31 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 
 	return
 }
+
+// Insert inserts data into table.
+// It will skip columns with "ai" tag
+func (m *Manager) Insert(db *sql.DB, table string, data interface{}) (res sql.Result, err error) {
+	val := reflect.Indirect(reflect.ValueOf(data))
+	def, err := m.getMap(val.Type())
+
+	cols := make([]string, 0, len(def))
+	vals := make([]interface{}, 0, len(def))
+	for col, fdef := range def {
+		if fdef.isAI {
+			// skip auto increment columns
+			continue
+		}
+
+		cols = append(cols, col)
+		vals = append(vals, val.Field(fdef.id).Interface())
+	}
+	holders := "?" + strings.Repeat(",?", len(cols)-1)
+	qstr := fmt.Sprintf(
+		`INSERT INTO %s (%s) VALUES (%s)`,
+		table,
+		strings.Join(cols, ","),
+		holders,
+	)
+
+	return db.Exec(qstr, vals...)
+}
