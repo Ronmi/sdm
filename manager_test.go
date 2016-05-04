@@ -106,7 +106,7 @@ func TestUpdate(t *testing.T) {
 	data := testok{1, 2, 3, "update", ti}
 
 	if _, err := m.Insert(db, "testok", data); err != nil {
-		t.Fatalf("Error inserting data for updateing: %s", err)
+		t.Fatalf("Error inserting data for updating: %s", err)
 	}
 
 	data.ExportInt = 4
