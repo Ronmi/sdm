@@ -5,13 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 )
+
+type fielddef struct {
+	id   int
+	isAI bool // auto increment
+}
 
 // Rows proxies all needed methods of sql.Rows
 type Rows struct {
 	*sql.Rows
-	fields  map[string]int
+	fields  map[string]*fielddef
 	columns []string
 	e       error
 	t       reflect.Type
@@ -50,7 +56,7 @@ func (r *Rows) Scan(data interface{}) (err error) {
 
 	holders := make([]interface{}, len(r.columns))
 	for idx, col := range r.columns {
-		vf := vstruct.Field(r.fields[col])
+		vf := vstruct.Field(r.fields[col].id)
 		vfa := vf.Addr()
 		holders[idx] = vfa.Interface()
 	}
@@ -74,19 +80,19 @@ func (r *Rows) Columns() ([]string, error) {
 
 // Manager is just manager. any question?
 type Manager struct {
-	mappings map[reflect.Type]map[string]int
+	mappings map[reflect.Type]map[string]*fielddef
 	lock     sync.Mutex
 }
 
 // New create sdm manager
 func New() *Manager {
 	return &Manager{
-		map[reflect.Type]map[string]int{},
+		map[reflect.Type]map[string]*fielddef{},
 		sync.Mutex{},
 	}
 }
 
-func (m *Manager) getMap(t reflect.Type) (ret map[string]int, err error) {
+func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -95,7 +101,7 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]int, err error) {
 		return
 	}
 
-	ret = make(map[string]int)
+	ret = make(map[string]*fielddef)
 
 	if t.Kind() != reflect.Struct {
 		return ret, fmt.Errorf("sdm: %s is not a struct type", t.String())
@@ -114,7 +120,17 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]int, err error) {
 			continue
 		}
 
-		ret[tag] = idx
+		tags := strings.Split(tag, ",")
+		col := tags[0]
+		tags = tags[1:]
+		ret[col] = &fielddef{}
+		ret[col].id = idx
+		for _, tag := range tags {
+			switch tag {
+			case "ai":
+				ret[col].isAI = true
+			}
+		}
 	}
 
 	return
