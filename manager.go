@@ -230,3 +230,26 @@ func (m *Manager) Update(db *sql.DB, table string, data interface{}, where strin
 
 	return db.Exec(qstr, vals...)
 }
+
+// Delete deletes data in db.
+func (m *Manager) Delete(db *sql.DB, table string, data interface{}) (sql.Result, error) {
+	val := reflect.Indirect(reflect.ValueOf(data))
+	def, err := m.getMap(val.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	cols := make([]string, 0, len(def))
+	vals := make([]interface{}, 0, len(def))
+	for col, fdef := range def {
+		cols = append(cols, col+"=?")
+		vals = append(vals, val.Field(fdef.id).Interface())
+	}
+	qstr := fmt.Sprintf(
+		`DELETE FROM %s WHERE %s`,
+		table,
+		strings.Join(cols, " AND "),
+	)
+
+	return db.Exec(qstr, vals...)
+}

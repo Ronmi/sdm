@@ -123,3 +123,26 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("There should be only one result after updating, but we got %d", cnt)
 	}
 }
+
+func TestDelete(t *testing.T) {
+	m := New()
+	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+	data := testok{1, 2, 3, "delete", ti}
+
+	if _, err := m.Insert(db, "testok", data); err != nil {
+		t.Fatalf("Error inserting data for deleting: %s", err)
+	}
+
+	if _, err := m.Delete(db, "testok", data); err != nil {
+		t.Fatalf("Error deleting data: %s", err)
+	}
+
+	var cnt int
+	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="delete" AND strftime("%s", t)="1462320000"`)
+	if err := row.Scan(&cnt); err != nil {
+		t.Fatalf("Cannot scan COUNT(eint) for delete: %s", err)
+	}
+	if cnt != 0 {
+		t.Errorf("There should be only one result after deleting, but we got %d", cnt)
+	}
+}
