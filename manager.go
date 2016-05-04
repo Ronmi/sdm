@@ -138,7 +138,7 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
 
 // Proxify proxies needed methods of sql.Rows
 func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
-	t := reflect.TypeOf(data)
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
 	f, e := m.getMap(t)
 	c, err := r.Columns()
 	if e == nil {
@@ -156,7 +156,7 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 
 // Col returns a list of columns in sql format
 func (m *Manager) Col(data interface{}, table string) (ret []string, err error) {
-	f, err := m.getMap(reflect.TypeOf(data))
+	f, err := m.getMap(reflect.Indirect(reflect.ValueOf(data)).Type())
 	if err != nil {
 		return
 	}

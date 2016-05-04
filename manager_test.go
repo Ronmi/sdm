@@ -47,6 +47,13 @@ func TestScanOK(t *testing.T) {
 	}
 
 	proxy := m.Proxify(rows, val)
+	if proxy.Err() != nil {
+		t.Fatalf("Cannot proxy the sql.Rows with value: %s", err)
+	}
+	proxy = m.Proxify(rows, &val)
+	if proxy.Err() != nil {
+		t.Fatalf("Cannot proxy the sql.Rows with pointer: %s", err)
+	}
 	defer proxy.Close()
 	proxy.Next()
 	if err := proxy.Scan(&val); err != nil {
@@ -73,3 +80,22 @@ func TestScanOK(t *testing.T) {
 		t.Errorf("nonExportInt != 0: %d", val.nonExportInt)
 	}
 }
+
+// func TestInsert(t *testing.T) {
+// 	m := New()
+// 	t, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+// 	data := testok{1, 2, 3, "test1", t}
+
+// 	if err := m.Insert(db, "testok", data); err != nil {
+// 		t.Fatalf("Error inserting data: %s", err)
+// 	}
+
+// 	var cnt int
+// 	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="test1" AND t="2016-05-04 00:00:00"`)
+// 	if err := row.Scan(&cnt); err != nil {
+// 		t.Fatalf("Cannot scan COUNT(eint): %s", err)
+// 	}
+// 	if cnt != 1 {
+// 		t.Errorf("There should be only one result, but we got %d", cnt)
+// 	}
+// }
