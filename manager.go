@@ -203,3 +203,30 @@ func (m *Manager) Insert(db *sql.DB, table string, data interface{}) (res sql.Re
 
 	return db.Exec(qstr, vals...)
 }
+
+// Update updates data in db.
+func (m *Manager) Update(db *sql.DB, table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
+	val := reflect.Indirect(reflect.ValueOf(data))
+	def, err := m.getMap(val.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	cols := make([]string, 0, len(def))
+	vals := make([]interface{}, 0, len(def)+len(whereargs))
+	for col, fdef := range def {
+		cols = append(cols, col+"=?")
+		vals = append(vals, val.Field(fdef.id).Interface())
+	}
+	qstr := fmt.Sprintf(
+		`UPDATE %s SET %s WHERE %s`,
+		table,
+		strings.Join(cols, ","),
+		where,
+	)
+	if len(whereargs) > 0 {
+		vals = append(vals, whereargs...)
+	}
+
+	return db.Exec(qstr, vals...)
+}

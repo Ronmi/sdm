@@ -84,18 +84,42 @@ func TestScanOK(t *testing.T) {
 func TestInsert(t *testing.T) {
 	m := New()
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-	data := testok{1, 2, 3, "test1", ti}
+	data := testok{1, 2, 3, "insert", ti}
 
 	if _, err := m.Insert(db, "testok", data); err != nil {
 		t.Fatalf("Error inserting data: %s", err)
 	}
 
 	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="test1" AND strftime("%s", t)="1462320000"`)
+	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
 	if err := row.Scan(&cnt); err != nil {
-		t.Fatalf("Cannot scan COUNT(eint): %s", err)
+		t.Fatalf("Cannot scan COUNT(eint) for insert: %s", err)
 	}
 	if cnt != 1 {
-		t.Errorf("There should be only one result, but we got %d", cnt)
+		t.Errorf("There should be only one result after inserting, but we got %d", cnt)
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	m := New()
+	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+	data := testok{1, 2, 3, "update", ti}
+
+	if _, err := m.Insert(db, "testok", data); err != nil {
+		t.Fatalf("Error inserting data for updateing: %s", err)
+	}
+
+	data.ExportInt = 4
+	if _, err := m.Update(db, "testok", data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
+		t.Fatalf("Error updating data: %s", err)
+	}
+
+	var cnt int
+	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND strftime("%s", t)="1462320000"`)
+	if err := row.Scan(&cnt); err != nil {
+		t.Fatalf("Cannot scan COUNT(eint) for update: %s", err)
+	}
+	if cnt != 1 {
+		t.Errorf("There should be only one result after updating, but we got %d", cnt)
 	}
 }
