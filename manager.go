@@ -182,12 +182,20 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 // Query makes SQL query and proxies it
 func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 	dbrows, err := m.db.Query(qstr, args...)
-	ret := m.Proxify(dbrows, typ)
 	if err != nil {
-		ret.e = err
-		ret.rows = nil
+		t := reflect.Indirect(reflect.ValueOf(typ)).Type()
+		f, _ := m.getMap(t)
+
+		return &Rows{
+			nil,
+			f,
+			[]string{},
+			err,
+			t,
+		}
 	}
-	return ret
+
+	return m.Proxify(dbrows, typ)
 }
 
 // Col returns a list of columns in sql format

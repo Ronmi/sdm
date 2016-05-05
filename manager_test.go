@@ -173,3 +173,12 @@ func TestInsertAI(t *testing.T) {
 		t.Errorf("There should be only one result after ai inserting, but we got %d", cnt)
 	}
 }
+
+func TestQueryError(t *testing.T) {
+	data := testok{}
+	rows := m.Query(data, `THIS IS INVALID SQL QUERY`)
+	err := rows.Err()
+	if err == nil {
+		t.Fatal("QueryError should return error, got nil")
+	}
+}
