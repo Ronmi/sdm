@@ -185,6 +185,7 @@ func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows
 	ret := m.Proxify(dbrows, typ)
 	if err != nil {
 		ret.e = err
+		ret.rows = nil
 	}
 	return ret
 }
