@@ -16,7 +16,7 @@ type fielddef struct {
 
 // Rows proxies all needed methods of sql.Rows
 type Rows struct {
-	*sql.Rows
+	rows    *sql.Rows
 	fields  map[string]*fielddef
 	columns []string
 	e       error
@@ -61,14 +61,14 @@ func (r *Rows) Scan(data interface{}) (err error) {
 		holders[idx] = vfa.Interface()
 	}
 
-	r.e = r.Rows.Scan(holders...)
+	r.e = r.rows.Scan(holders...)
 	return r.e
 }
 
 // Err proxies sql.Rows.Close
 func (r *Rows) Err() error {
 	if r.e == nil {
-		r.e = r.Rows.Err()
+		r.e = r.rows.Err()
 	}
 	return r.e
 }
@@ -79,7 +79,21 @@ func (r *Rows) Next() bool {
 		return false
 	}
 
-	return r.Rows.Next()
+	return r.rows.Next()
+}
+
+// Close proxies sql.Rows.Close
+func (r *Rows) Close() error {
+	if r.e != nil {
+		return r.e
+	}
+
+	if r.rows == nil {
+		return r.e
+	}
+
+	r.e = r.rows.Close()
+	return r.e
 }
 
 // Columns proxies sql.Rows.Columns
