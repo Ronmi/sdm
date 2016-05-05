@@ -91,13 +91,15 @@ func (r *Rows) Columns() ([]string, error) {
 type Manager struct {
 	mappings map[reflect.Type]map[string]*fielddef
 	lock     sync.Mutex
+	db       *sql.DB
 }
 
 // New create sdm manager
-func New() *Manager {
+func New(db *sql.DB) *Manager {
 	return &Manager{
 		map[reflect.Type]map[string]*fielddef{},
 		sync.Mutex{},
+		db,
 	}
 }
 
@@ -161,6 +163,16 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 		e,
 		t,
 	}
+}
+
+// Query makes SQL query and proxies it
+func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
+	dbrows, err := m.db.Query(qstr, args...)
+	ret := m.Proxify(dbrows, typ)
+	if err != nil {
+		ret.e = err
+	}
+	return ret
 }
 
 // Col returns a list of columns in sql format
