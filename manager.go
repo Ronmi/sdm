@@ -73,6 +73,15 @@ func (r *Rows) Err() error {
 	return r.e
 }
 
+// Next proxies sql.Rows.Next
+func (r *Rows) Next() bool {
+	if r.e != nil {
+		return false
+	}
+
+	return r.Rows.Next()
+}
+
 // Columns proxies sql.Rows.Columns
 func (r *Rows) Columns() ([]string, error) {
 	return r.columns, r.e
