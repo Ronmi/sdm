@@ -24,6 +24,7 @@ type testai struct {
 }
 
 var db *sql.DB
+var m *Manager
 
 func init() {
 	conn, err := sql.Open("sqlite3", ":memory:")
@@ -46,10 +47,10 @@ func init() {
 	if _, err := db.Exec(s); err != nil {
 		log.Fatalf("Cannot insert preset data into testok: %s", err)
 	}
+	m = New(db)
 }
 
 func TestScanOK(t *testing.T) {
-	m := New()
 	var val testok
 
 	rows, err := db.Query(`SELECT * FROM testok`)
@@ -93,11 +94,10 @@ func TestScanOK(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	m := New()
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{1, 2, 3, "insert", ti}
 
-	if _, err := m.Insert(db, "testok", data); err != nil {
+	if _, err := m.Insert("testok", data); err != nil {
 		t.Fatalf("Error inserting data: %s", err)
 	}
 
@@ -112,16 +112,15 @@ func TestInsert(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	m := New()
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{1, 2, 3, "update", ti}
 
-	if _, err := m.Insert(db, "testok", data); err != nil {
+	if _, err := m.Insert("testok", data); err != nil {
 		t.Fatalf("Error inserting data for updating: %s", err)
 	}
 
 	data.ExportInt = 4
-	if _, err := m.Update(db, "testok", data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
+	if _, err := m.Update("testok", data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
 		t.Fatalf("Error updating data: %s", err)
 	}
 
@@ -136,15 +135,14 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	m := New()
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{1, 2, 3, "delete", ti}
 
-	if _, err := m.Insert(db, "testok", data); err != nil {
+	if _, err := m.Insert("testok", data); err != nil {
 		t.Fatalf("Error inserting data for deleting: %s", err)
 	}
 
-	if _, err := m.Delete(db, "testok", data); err != nil {
+	if _, err := m.Delete("testok", data); err != nil {
 		t.Fatalf("Error deleting data: %s", err)
 	}
 
@@ -159,11 +157,10 @@ func TestDelete(t *testing.T) {
 }
 
 func TestInsertAI(t *testing.T) {
-	m := New()
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{ExportString: "insert", ExportTime: ti}
 
-	if _, err := m.Insert(db, "testai", data); err != nil {
+	if _, err := m.Insert("testai", data); err != nil {
 		t.Fatalf("Error inserting ai data: %s", err)
 	}
 

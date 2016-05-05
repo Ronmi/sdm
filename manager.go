@@ -196,7 +196,7 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 
 // Insert inserts data into table.
 // It will skip columns with "ai" tag
-func (m *Manager) Insert(db *sql.DB, table string, data interface{}) (res sql.Result, err error) {
+func (m *Manager) Insert(table string, data interface{}) (res sql.Result, err error) {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	def, err := m.getMap(val.Type())
 	if err != nil {
@@ -222,11 +222,11 @@ func (m *Manager) Insert(db *sql.DB, table string, data interface{}) (res sql.Re
 		holders,
 	)
 
-	return db.Exec(qstr, vals...)
+	return m.db.Exec(qstr, vals...)
 }
 
 // Update updates data in db.
-func (m *Manager) Update(db *sql.DB, table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
+func (m *Manager) Update(table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	def, err := m.getMap(val.Type())
 	if err != nil {
@@ -249,11 +249,11 @@ func (m *Manager) Update(db *sql.DB, table string, data interface{}, where strin
 		vals = append(vals, whereargs...)
 	}
 
-	return db.Exec(qstr, vals...)
+	return m.db.Exec(qstr, vals...)
 }
 
 // Delete deletes data in db.
-func (m *Manager) Delete(db *sql.DB, table string, data interface{}) (sql.Result, error) {
+func (m *Manager) Delete(table string, data interface{}) (sql.Result, error) {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	def, err := m.getMap(val.Type())
 	if err != nil {
@@ -272,5 +272,5 @@ func (m *Manager) Delete(db *sql.DB, table string, data interface{}) (sql.Result
 		strings.Join(cols, " AND "),
 	)
 
-	return db.Exec(qstr, vals...)
+	return m.db.Exec(qstr, vals...)
 }
