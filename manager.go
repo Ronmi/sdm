@@ -161,6 +161,11 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
 	return
 }
 
+// Connection returns stored *sql.DB
+func (m *Manager) Connection() *sql.DB {
+	return m.db
+}
+
 // Proxify proxies needed methods of sql.Rows
 func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
