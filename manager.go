@@ -222,17 +222,15 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 	return
 }
 
-// Insert inserts data into table.
-// It will skip columns with "ai" tag
-func (m *Manager) Insert(table string, data interface{}) (res sql.Result, err error) {
+func (m *Manager) makeInsert(table string, data interface{}) (qstr string, vals []interface{}, err error) {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	def, err := m.getMap(val.Type())
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	cols := make([]string, 0, len(def))
-	vals := make([]interface{}, 0, len(def))
+	vals = make([]interface{}, 0, len(def))
 	for col, fdef := range def {
 		if fdef.isAI {
 			// skip auto increment columns
@@ -243,31 +241,39 @@ func (m *Manager) Insert(table string, data interface{}) (res sql.Result, err er
 		vals = append(vals, val.Field(fdef.id).Interface())
 	}
 	holders := "?" + strings.Repeat(",?", len(cols)-1)
-	qstr := fmt.Sprintf(
+	qstr = fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES (%s)`,
 		table,
 		strings.Join(cols, ","),
 		holders,
 	)
-
-	return m.db.Exec(qstr, vals...)
+	return
 }
 
-// Update updates data in db.
-func (m *Manager) Update(table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
-	val := reflect.Indirect(reflect.ValueOf(data))
-	def, err := m.getMap(val.Type())
+// Insert inserts data into table.
+// It will skip columns with "ai" tag
+func (m *Manager) Insert(table string, data interface{}) (sql.Result, error) {
+	qstr, vals, err := m.makeInsert(table, data)
 	if err != nil {
 		return nil, err
 	}
+	return m.db.Exec(qstr, vals...)
+}
+
+func (m *Manager) makeUpdate(table string, data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}, err error) {
+	val := reflect.Indirect(reflect.ValueOf(data))
+	def, err := m.getMap(val.Type())
+	if err != nil {
+		return
+	}
 
 	cols := make([]string, 0, len(def))
-	vals := make([]interface{}, 0, len(def)+len(whereargs))
+	vals = make([]interface{}, 0, len(def)+len(whereargs))
 	for col, fdef := range def {
 		cols = append(cols, col+"=?")
 		vals = append(vals, val.Field(fdef.id).Interface())
 	}
-	qstr := fmt.Sprintf(
+	qstr = fmt.Sprintf(
 		`UPDATE %s SET %s WHERE %s`,
 		table,
 		strings.Join(cols, ","),
@@ -276,29 +282,54 @@ func (m *Manager) Update(table string, data interface{}, where string, whereargs
 	if len(whereargs) > 0 {
 		vals = append(vals, whereargs...)
 	}
-
-	return m.db.Exec(qstr, vals...)
+	return
 }
 
-// Delete deletes data in db.
-func (m *Manager) Delete(table string, data interface{}) (sql.Result, error) {
-	val := reflect.Indirect(reflect.ValueOf(data))
-	def, err := m.getMap(val.Type())
+// Update updates data in db.
+func (m *Manager) Update(table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
+	qstr, vals, err := m.makeUpdate(table, data, where, whereargs)
 	if err != nil {
 		return nil, err
 	}
+	return m.db.Exec(qstr, vals...)
+}
+
+func (m *Manager) makeDelete(table string, data interface{}) (qstr string, vals []interface{}, err error) {
+	val := reflect.Indirect(reflect.ValueOf(data))
+	def, err := m.getMap(val.Type())
+	if err != nil {
+		return
+	}
 
 	cols := make([]string, 0, len(def))
-	vals := make([]interface{}, 0, len(def))
+	vals = make([]interface{}, 0, len(def))
 	for col, fdef := range def {
 		cols = append(cols, col+"=?")
 		vals = append(vals, val.Field(fdef.id).Interface())
 	}
-	qstr := fmt.Sprintf(
+	qstr = fmt.Sprintf(
 		`DELETE FROM %s WHERE %s`,
 		table,
 		strings.Join(cols, " AND "),
 	)
 
+	return
+}
+
+// Delete deletes data in db.
+func (m *Manager) Delete(table string, data interface{}) (sql.Result, error) {
+	qstr, vals, err := m.makeDelete(table, data)
+	if err != nil {
+		return nil, err
+	}
 	return m.db.Exec(qstr, vals...)
+}
+
+// Begin creates a transaction
+func (m *Manager) Begin() (*Tx, error) {
+	tx, err := m.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{tx, m}, nil
 }
