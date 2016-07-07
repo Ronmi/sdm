@@ -9,6 +9,8 @@ import (
 type Bulk interface {
 	// Add some elements to be bulk operated
 	Add(data ...interface{}) error
+	// current data length, Manager and Tx will not do execution if Len returns 0
+	Len() int
 
 	// Make sql statement
 	Make() (qstr string, vals []interface{})
@@ -39,6 +41,10 @@ func (b *bulkinfo) Add(data ...interface{}) error {
 
 	b.data = append(b.data, data...)
 	return nil
+}
+
+func (b *bulkinfo) Len() int {
+	return len(b.data)
 }
 
 type bulkInsert struct {

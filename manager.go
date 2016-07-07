@@ -338,6 +338,9 @@ func (m *Manager) BulkDelete(table string, typ interface{}) (Bulk, error) {
 
 // RunBulk executes a bulk operation
 func (m *Manager) RunBulk(b Bulk) (sql.Result, error) {
+	if b.Len() < 1 {
+		return nil, nil
+	}
 	qstr, vals := b.Make()
 	return m.Connection().Exec(qstr, vals...)
 }

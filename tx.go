@@ -75,6 +75,9 @@ func (tx *Tx) Tx() *sql.Tx {
 
 // RunBulk executes a bulk operation
 func (tx *Tx) RunBulk(b Bulk) (sql.Result, error) {
+	if b.Len() < 1 {
+		return nil, nil
+	}
 	qstr, vals := b.Make()
 	return tx.Tx().Exec(qstr, vals...)
 }
