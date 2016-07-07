@@ -32,12 +32,22 @@ func New(db *sql.DB) *Manager {
 	}
 }
 
-func (m *Manager) register(t reflect.Type) (err error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *Manager) has(t reflect.Type) bool {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	if _, ok := m.fields[t]; ok {
+		return true
+	}
+	return false
+}
+
+func (m *Manager) register(t reflect.Type) (err error) {
+	if m.has(t) {
 		return
 	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	if t.Kind() != reflect.Struct {
 		return fmt.Errorf("sdm: %s is not a struct type", t.String())
@@ -298,4 +308,36 @@ func (m *Manager) Begin() (*Tx, error) {
 		return nil, err
 	}
 	return &Tx{tx, m}, nil
+}
+
+// BulkInsert creates a generator to generate long statement which inserts many data at once
+func (m *Manager) BulkInsert(table string, typ interface{}) (Bulk, error) {
+	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
+	def, err := m.getDef(t)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bulkInsert{
+		newBulkInfo(table, t, def),
+	}, nil
+}
+
+// BulkDelete creates a generator to generate long statement which deletes many data at once
+func (m *Manager) BulkDelete(table string, typ interface{}) (Bulk, error) {
+	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
+	def, err := m.getDef(t)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bulkDelete{
+		newBulkInfo(table, t, def),
+	}, nil
+}
+
+// RunBulk executes a bulk operation
+func (m *Manager) RunBulk(b Bulk) (sql.Result, error) {
+	qstr, vals := b.Make()
+	return m.Connection().Exec(qstr, vals...)
 }

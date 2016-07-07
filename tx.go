@@ -72,3 +72,9 @@ func (tx *Tx) Commit() error {
 func (tx *Tx) Tx() *sql.Tx {
 	return tx.tx
 }
+
+// RunBulk executes a bulk operation
+func (tx *Tx) RunBulk(b Bulk) (sql.Result, error) {
+	qstr, vals := b.Make()
+	return tx.Tx().Exec(qstr, vals...)
+}
