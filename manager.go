@@ -2,7 +2,6 @@ package sdm
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,130 +9,45 @@ import (
 )
 
 type fielddef struct {
-	id   int
-	isAI bool // auto increment
-}
-
-// Rows proxies all needed methods of sql.Rows
-type Rows struct {
-	rows    *sql.Rows
-	fields  map[string]*fielddef
-	columns []string
-	e       error
-	t       reflect.Type
-}
-
-func (r *Rows) err(msg string) error {
-	r.e = errors.New(msg)
-	return r.e
-}
-
-func (r *Rows) errf(msg string, args ...interface{}) error {
-	r.e = fmt.Errorf(msg, args...)
-	return r.e
-}
-
-// Scan reads columns into fields
-func (r *Rows) Scan(data interface{}) (err error) {
-	if err = r.e; err != nil {
-		return
-	}
-
-	vstruct := reflect.ValueOf(data)
-	if k := vstruct.Kind(); k != reflect.Ptr && k != reflect.Interface {
-		return r.err("sdm: need reference to change data")
-	}
-	vstruct = vstruct.Elem()
-	if t := vstruct.Type(); t != r.t {
-		return r.errf("sdm: type mismatch, need %s but got %s", r.t.String(), t.String())
-	}
-
-	for _, col := range r.columns {
-		if _, ok := r.fields[col]; !ok {
-			return r.errf("sdm: column %s not in struct", col)
-		}
-	}
-
-	holders := make([]interface{}, len(r.columns))
-	for idx, col := range r.columns {
-		vf := vstruct.Field(r.fields[col].id)
-		vfa := vf.Addr()
-		holders[idx] = vfa.Interface()
-	}
-
-	r.e = r.rows.Scan(holders...)
-	return r.e
-}
-
-// Err proxies sql.Rows.Close
-func (r *Rows) Err() error {
-	if r.e == nil {
-		r.e = r.rows.Err()
-	}
-	return r.e
-}
-
-// Next proxies sql.Rows.Next
-func (r *Rows) Next() bool {
-	if r.e != nil {
-		return false
-	}
-
-	return r.rows.Next()
-}
-
-// Close proxies sql.Rows.Close
-func (r *Rows) Close() error {
-	if r.e != nil {
-		return r.e
-	}
-
-	if r.rows == nil {
-		return r.e
-	}
-
-	r.e = r.rows.Close()
-	return r.e
-}
-
-// Columns proxies sql.Rows.Columns
-func (r *Rows) Columns() ([]string, error) {
-	return r.columns, r.e
+	id   int    // field id
+	isAI bool   // auto increment
+	name string // column name
 }
 
 // Manager is just manager. any question?
 type Manager struct {
-	mappings map[reflect.Type]map[string]*fielddef
-	lock     sync.Mutex
-	db       *sql.DB
+	columns map[reflect.Type]map[string]*fielddef
+	fields  map[reflect.Type][]*fielddef
+	lock    sync.RWMutex
+	db      *sql.DB
 }
 
 // New create sdm manager
 func New(db *sql.DB) *Manager {
 	return &Manager{
 		map[reflect.Type]map[string]*fielddef{},
-		sync.Mutex{},
+		map[reflect.Type][]*fielddef{},
+		sync.RWMutex{},
 		db,
 	}
 }
 
-func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
+func (m *Manager) register(t reflect.Type) (err error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-
-	ret, ok := m.mappings[t]
-	if ok {
+	if _, ok := m.fields[t]; ok {
 		return
 	}
 
-	ret = make(map[string]*fielddef)
-
 	if t.Kind() != reflect.Struct {
-		return ret, fmt.Errorf("sdm: %s is not a struct type", t.String())
+		return fmt.Errorf("sdm: %s is not a struct type", t.String())
 	}
 
-	for idx := 0; idx < t.NumField(); idx++ {
-		f := t.Field(idx)
+	mps := make([]*fielddef, 0, t.NumField())
+	idx := make(map[string]*fielddef)
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
 		tag := f.Tag.Get("sdm")
 		if tag == "" {
 			// not decorated, skip
@@ -148,17 +62,102 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
 		tags := strings.Split(tag, ",")
 		col := tags[0]
 		tags = tags[1:]
-		ret[col] = &fielddef{}
-		ret[col].id = idx
+
+		fdef := &fielddef{id: i, name: col}
 		for _, tag := range tags {
 			switch tag {
 			case "ai":
-				ret[col].isAI = true
+				fdef.isAI = true
 			}
 		}
+
+		mps = append(mps, fdef)
+		idx[col] = fdef
+	}
+
+	m.columns[t] = idx
+	m.fields[t] = mps
+	return
+}
+
+func (m *Manager) getDef(t reflect.Type) (ret []*fielddef, err error) {
+	if err = m.register(t); err != nil {
+		return
+	}
+
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	ret = m.fields[t]
+	return
+}
+
+func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
+	if err = m.register(t); err != nil {
+		return
+	}
+
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	ret = m.columns[t]
+	return
+}
+
+// Col returns a list of columns in sql format, including AUTO INCREMENT columns
+func (m *Manager) Col(data interface{}, table string) (ret []string, err error) {
+	fdef, err := m.getDef(reflect.Indirect(reflect.ValueOf(data)).Type())
+	if err != nil {
+		return
+	}
+	ret = make([]string, 0, len(fdef))
+
+	for _, f := range fdef {
+		c := f.name
+		if table != "" {
+			c = table + "." + c
+		}
+		ret = append(ret, c)
 	}
 
 	return
+}
+
+// ColIns returns a list of columns in sql format, excluding AUTO INCREMENT columns
+func (m *Manager) ColIns(data interface{}, table string) (ret []string, err error) {
+	fdef, err := m.getDef(reflect.Indirect(reflect.ValueOf(data)).Type())
+	if err != nil {
+		return
+	}
+	ret = make([]string, 0, len(fdef))
+
+	for _, f := range fdef {
+		if f.isAI {
+			continue
+		}
+		c := f.name
+		if table != "" {
+			c = table + "." + c
+		}
+		ret = append(ret, c)
+	}
+
+	return
+}
+
+// Val converts struct to value array
+func (m *Manager) Val(data interface{}) ([]interface{}, error) {
+	var ret []interface{}
+	v := reflect.ValueOf(data)
+	t := reflect.Indirect(v).Type()
+	fdef, err := m.getDef(t)
+	if err != nil {
+		return nil, err
+	}
+
+	ret = make([]interface{}, len(fdef))
+	for k, f := range fdef {
+		ret[k] = v.Field(f.id).Interface()
+	}
+	return ret, nil
 }
 
 // Connection returns stored *sql.DB
@@ -203,43 +202,16 @@ func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows
 	return m.Proxify(dbrows, typ)
 }
 
-// Col returns a list of columns in sql format
-func (m *Manager) Col(data interface{}, table string) (ret []string, err error) {
-	f, err := m.getMap(reflect.Indirect(reflect.ValueOf(data)).Type())
-	if err != nil {
-		return
-	}
-	ret = make([]string, 0, len(f))
-
-	for col := range f {
-		c := col
-		if table != "" {
-			c = table + "." + c
-		}
-		ret = append(ret, c)
-	}
-
-	return
-}
-
 func (m *Manager) makeInsert(table string, data interface{}) (qstr string, vals []interface{}, err error) {
-	val := reflect.Indirect(reflect.ValueOf(data))
-	def, err := m.getMap(val.Type())
-	if err != nil {
+	if vals, err = m.Val(data); err != nil {
 		return
 	}
 
-	cols := make([]string, 0, len(def))
-	vals = make([]interface{}, 0, len(def))
-	for col, fdef := range def {
-		if fdef.isAI {
-			// skip auto increment columns
-			continue
-		}
-
-		cols = append(cols, col)
-		vals = append(vals, val.Field(fdef.id).Interface())
+	var cols []string
+	if cols, err = m.ColIns(data, ""); err != nil {
+		return
 	}
+
 	holders := "?" + strings.Repeat(",?", len(cols)-1)
 	qstr = fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES (%s)`,
@@ -261,22 +233,19 @@ func (m *Manager) Insert(table string, data interface{}) (sql.Result, error) {
 }
 
 func (m *Manager) makeUpdate(table string, data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}, err error) {
-	val := reflect.Indirect(reflect.ValueOf(data))
-	def, err := m.getMap(val.Type())
-	if err != nil {
+	if vals, err = m.Val(data); err != nil {
 		return
 	}
 
-	cols := make([]string, 0, len(def))
-	vals = make([]interface{}, 0, len(def)+len(whereargs))
-	for col, fdef := range def {
-		cols = append(cols, col+"=?")
-		vals = append(vals, val.Field(fdef.id).Interface())
+	var cols []string
+	if cols, err = m.ColIns(data, ""); err != nil {
+		return
 	}
+
 	qstr = fmt.Sprintf(
 		`UPDATE %s SET %s WHERE %s`,
 		table,
-		strings.Join(cols, ","),
+		strings.Join(cols, "=?,")+"=?",
 		where,
 	)
 	if len(whereargs) > 0 {
@@ -295,22 +264,19 @@ func (m *Manager) Update(table string, data interface{}, where string, whereargs
 }
 
 func (m *Manager) makeDelete(table string, data interface{}) (qstr string, vals []interface{}, err error) {
-	val := reflect.Indirect(reflect.ValueOf(data))
-	def, err := m.getMap(val.Type())
-	if err != nil {
+	if vals, err = m.Val(data); err != nil {
 		return
 	}
 
-	cols := make([]string, 0, len(def))
-	vals = make([]interface{}, 0, len(def))
-	for col, fdef := range def {
-		cols = append(cols, col+"=?")
-		vals = append(vals, val.Field(fdef.id).Interface())
+	var cols []string
+	if cols, err = m.ColIns(data, ""); err != nil {
+		return
 	}
+
 	qstr = fmt.Sprintf(
 		`DELETE FROM %s WHERE %s`,
 		table,
-		strings.Join(cols, " AND "),
+		strings.Join(cols, "=? AND ")+"=?",
 	)
 
 	return
