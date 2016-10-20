@@ -2,6 +2,7 @@ package sdm
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -181,4 +182,47 @@ func TestQueryError(t *testing.T) {
 	if err == nil {
 		t.Fatal("QueryError should return error, got nil")
 	}
+}
+
+func TestBuild(t *testing.T) {
+	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-10-20 08:00:00 +0800")
+	data := testok{2, 3, 4, "build", ti}
+
+	if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`, ""); err != nil {
+		t.Fatalf("Error inserting ai data: %s", err)
+	}
+
+	var cnt int
+	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="build" AND strftime("%s", t)="1476921600"`)
+	if err := row.Scan(&cnt); err != nil {
+		t.Fatalf("Cannot scan COUNT(eint) for build: %s", err)
+	}
+	if cnt != 1 {
+		t.Errorf("There should be only one result after building, but we got %d", cnt)
+	}
+}
+
+func ExampleBuild() {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		log.Fatal(err)
+	}
+	m := New(db)
+
+	db.Exec(`CREATE TABLE t (c int)`)
+	type t struct {
+		C int `sdm:"c"`
+	}
+
+	data := t{1}
+	m.Build(data, `INSERT INTO t (%cols%) VALUES (%vals%)`, "")
+
+	var cnt int
+	row := db.QueryRow(`SELECT COUNT(*) FROM t`)
+	if err := row.Scan(&cnt); err != nil {
+		fmt.Printf("Cannot scan COUNT(eint) for build: %s", err)
+		return
+	}
+	fmt.Printf("Got %d record", cnt)
+	// output: Got 1 record
 }

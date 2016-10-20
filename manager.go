@@ -212,6 +212,42 @@ func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows
 	return m.Proxify(dbrows, typ)
 }
 
+// Exec warps sql.DB.Exec
+func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
+	return m.db.Exec(qstr, args...)
+}
+
+// Build constructs sql query, and executes it with Exec
+//
+// There are 3 special place holders to use in template, each for exactly one time most:
+//
+//   %cols%           col, col, col       (must use with %vals%)
+//   %vals%           ?, ?, ?             (must use with %cols%)
+//   %combined%       col=?, col=?, col=? (must not use with other two)
+//
+// Rules above is not validated, YOU MUST TAKE CARE OF IT YOURSELF.
+//
+// Custom parameters are not supported, use Exec instead.
+func (m *Manager) Build(data interface{}, tmpl, table string) (sql.Result, error) {
+	cols, err := m.Col(data, table)
+	if err != nil {
+		return nil, err
+	}
+	vals, err := m.Val(data)
+	if err != nil {
+		return nil, err
+	}
+	sz := len(vals)
+	if sz < 1 {
+		sz = 1
+	}
+
+	tmpl = strings.Replace(tmpl, "%cols%", strings.Join(cols, ","), 1)
+	tmpl = strings.Replace(tmpl, "%vals%", "?"+strings.Repeat(",?", sz-1), 1)
+	tmpl = strings.Replace(tmpl, "%combined%", strings.Join(cols, "=?,")+"=?", 1)
+	return m.Exec(tmpl, vals...)
+}
+
 func (m *Manager) makeInsert(table string, data interface{}) (qstr string, vals []interface{}, err error) {
 	if vals, err = m.Val(data); err != nil {
 		return
