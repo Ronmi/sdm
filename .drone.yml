@@ -1,6 +1,15 @@
 build:
-  image: golang:1.6
-  commands:
-    - go get -t -v
-    - go build -v
-    - go test -v
+  go16:
+    image: golang:1.6
+    pull: true
+    commands:
+      - go get -t -v
+      - go build -v
+      - go test -v
+  go17:
+    image: golang:1.7
+    pull: true
+    commands:
+      - go get -t -v
+      - go build -v
+      - go test -v
