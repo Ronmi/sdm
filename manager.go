@@ -156,8 +156,8 @@ func (m *Manager) ColIns(data interface{}, table string) (ret []string, err erro
 // Val converts struct to value array
 func (m *Manager) Val(data interface{}) ([]interface{}, error) {
 	var ret []interface{}
-	v := reflect.ValueOf(data)
-	t := reflect.Indirect(v).Type()
+	v := reflect.Indirect(reflect.ValueOf(data))
+	t := v.Type()
 	fdef, err := m.getDef(t)
 	if err != nil {
 		return nil, err
