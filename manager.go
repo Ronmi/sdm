@@ -170,6 +170,26 @@ func (m *Manager) Val(data interface{}) ([]interface{}, error) {
 	return ret, nil
 }
 
+// ValIns converts struct to value array, skipping auto increment fields
+func (m *Manager) ValIns(data interface{}) ([]interface{}, error) {
+	var ret []interface{}
+	v := reflect.Indirect(reflect.ValueOf(data))
+	t := v.Type()
+	fdef, err := m.getDef(t)
+	if err != nil {
+		return nil, err
+	}
+
+	ret = make([]interface{}, 0, len(fdef))
+	for _, f := range fdef {
+		if f.isAI {
+			continue
+		}
+		ret = append(ret, v.Field(f.id).Interface())
+	}
+	return ret, nil
+}
+
 // Connection returns stored *sql.DB
 func (m *Manager) Connection() *sql.DB {
 	return m.db
@@ -249,7 +269,7 @@ func (m *Manager) Build(data interface{}, tmpl, table string) (sql.Result, error
 }
 
 func (m *Manager) makeInsert(table string, data interface{}) (qstr string, vals []interface{}, err error) {
-	if vals, err = m.Val(data); err != nil {
+	if vals, err = m.ValIns(data); err != nil {
 		return
 	}
 
