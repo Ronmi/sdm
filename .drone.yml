@@ -1,13 +1,16 @@
-build:
-  go16:
-    image: golang:1.6
-    pull: true
-    commands:
-      - go get -t -v
-      - go build -v
-      - go test -v
-  go17:
-    image: golang:1.7
+workspace:
+  base: /go
+  path: src/git.ronmi.tw/ronmi/sdm
+
+matrix:
+  GOVER:
+    - 1.5
+    - 1.6
+    - 1.7
+
+pipeline:
+  go:
+    image: golang:${GOVER}
     pull: true
     commands:
       - go get -t -v
