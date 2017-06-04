@@ -366,7 +366,7 @@ func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{},
 	holders := "?" + strings.Repeat(",?", len(cols)-1)
 	qstr = fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES (%s)`,
-		table,
+		m.drv.Quote(table),
 		strings.Join(cols, ","),
 		holders,
 	)
@@ -401,7 +401,7 @@ func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interfa
 
 	qstr = fmt.Sprintf(
 		`UPDATE %s SET %s WHERE %s`,
-		table,
+		m.drv.Quote(table),
 		strings.Join(cols, "=?,")+"=?",
 		where,
 	)
@@ -438,7 +438,7 @@ func (m *Manager) makeDelete(data interface{}) (qstr string, vals []interface{},
 
 	qstr = fmt.Sprintf(
 		`DELETE FROM %s WHERE %s`,
-		table,
+		m.drv.Quote(table),
 		strings.Join(cols, "=? AND ")+"=?",
 	)
 
