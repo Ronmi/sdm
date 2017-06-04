@@ -21,11 +21,11 @@ type Bulk interface {
 type bulkinfo struct {
 	table string
 	typ   reflect.Type
-	def   []*driver.Column
+	def   []driver.Column
 	data  []interface{}
 }
 
-func newBulkInfo(table string, typ reflect.Type, def []*driver.Column) *bulkinfo {
+func newBulkInfo(table string, typ reflect.Type, def []driver.Column) *bulkinfo {
 	return &bulkinfo{
 		table,
 		typ,

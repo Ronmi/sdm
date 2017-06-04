@@ -31,8 +31,8 @@ func findIndexByName(i *[]driver.Index, name, typ string) int {
 // Manager is just manager. any question?
 type Manager struct {
 	indexes map[reflect.Type][]driver.Index
-	columns map[reflect.Type]map[string]*driver.Column
-	fields  map[reflect.Type][]*driver.Column
+	columns map[reflect.Type]map[string]driver.Column
+	fields  map[reflect.Type][]driver.Column
 	table   map[reflect.Type]string
 	lock    sync.RWMutex
 	db      *sql.DB
@@ -47,8 +47,8 @@ func New(db *sql.DB, sdmDriver driver.Driver) *Manager {
 
 	return &Manager{
 		map[reflect.Type][]driver.Index{},
-		map[reflect.Type]map[string]*driver.Column{},
-		map[reflect.Type][]*driver.Column{},
+		map[reflect.Type]map[string]driver.Column{},
+		map[reflect.Type][]driver.Column{},
 		map[reflect.Type]string{},
 		sync.RWMutex{},
 		db,
@@ -83,8 +83,8 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 		return fmt.Errorf("sdm: %s is not a struct type", t.String())
 	}
 
-	mps := make([]*driver.Column, 0, t.NumField())
-	idx := make(map[string]*driver.Column)
+	mps := make([]driver.Column, 0, t.NumField())
+	idx := make(map[string]driver.Column)
 	indexes := []driver.Index{}
 
 	for i := 0; i < t.NumField(); i++ {
@@ -104,7 +104,7 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 		col := tags[0]
 		tags = tags[1:]
 
-		fdef := &driver.Column{ID: i, Name: col}
+		fdef := driver.Column{ID: i, Name: col}
 		for _, tag := range tags {
 
 			if tag == "ai" {
@@ -140,7 +140,7 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 	return
 }
 
-func (m *Manager) getDef(t reflect.Type) (ret []*driver.Column, err error) {
+func (m *Manager) getDef(t reflect.Type) (ret []driver.Column, err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	ret, ok := m.fields[t]
@@ -150,7 +150,7 @@ func (m *Manager) getDef(t reflect.Type) (ret []*driver.Column, err error) {
 	return
 }
 
-func (m *Manager) getMap(t reflect.Type) (ret map[string]*driver.Column, err error) {
+func (m *Manager) getMap(t reflect.Type) (ret map[string]driver.Column, err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	ret, ok := m.columns[t]

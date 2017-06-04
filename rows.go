@@ -12,7 +12,7 @@ import (
 // Rows proxies all needed methods of sql.Rows
 type Rows struct {
 	rows    *sql.Rows
-	def     map[string]*driver.Column
+	def     map[string]driver.Column
 	columns []string
 	e       error
 	t       reflect.Type
