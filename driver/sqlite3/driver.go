@@ -126,6 +126,14 @@ func (d drv) Quote(name string) string {
 	return quote(name)
 }
 
+func (d drv) ColIns(table, col string) string {
+	return quote(col)
+}
+
+func (d drv) Col(table, col string) string {
+	return quote(col)
+}
+
 // New creates a driver instance
 func New() driver.Driver {
 	return drv{}

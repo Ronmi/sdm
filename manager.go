@@ -56,6 +56,11 @@ func New(db *sql.DB, sdmDriver driver.Driver) *Manager {
 	}
 }
 
+// Driver returns the driver we're using
+func (m *Manager) Driver() driver.Driver {
+	return m.drv
+}
+
 func (m *Manager) has(t reflect.Type) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -168,6 +173,10 @@ func (m *Manager) getTable(t reflect.Type) (ret string, err error) {
 // Col returns a list of columns in sql format, including AUTO INCREMENT columns
 func (m *Manager) Col(data interface{}) (ret []string, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return
+	}
 	fdef, err := m.getDef(t)
 	if err != nil {
 		return
@@ -175,7 +184,7 @@ func (m *Manager) Col(data interface{}) (ret []string, err error) {
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
-		c := f.Name
+		c := m.drv.Col(table, f.Name)
 		ret = append(ret, c)
 	}
 
@@ -185,6 +194,10 @@ func (m *Manager) Col(data interface{}) (ret []string, err error) {
 // ColIns returns a list of columns in sql format, excluding AUTO INCREMENT columns
 func (m *Manager) ColIns(data interface{}) (ret []string, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return
+	}
 	fdef, err := m.getDef(t)
 	if err != nil {
 		return
@@ -195,7 +208,7 @@ func (m *Manager) ColIns(data interface{}) (ret []string, err error) {
 		if f.AI {
 			continue
 		}
-		c := f.Name
+		c := m.drv.ColIns(table, f.Name)
 		ret = append(ret, c)
 	}
 

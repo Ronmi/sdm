@@ -14,6 +14,10 @@ type Driver interface {
 
 	// Quote quotes identifiers like table name or column name
 	Quote(name string) string
+
+	// Formats for general SQL statement
+	ColIns(table, col string) string // insert
+	Col(table, col string) string    // others
 }
 
 type defaultDriver struct {
@@ -29,6 +33,14 @@ func (d defaultDriver) CreateTableNotExist(db *sql.DB, name string, typ reflect.
 
 func (d defaultDriver) Quote(name string) string {
 	return name
+}
+
+func (d defaultDriver) ColIns(tble, col string) string {
+	return col
+}
+
+func (d defaultDriver) Col(tble, col string) string {
+	return col
 }
 
 // ValidateDriver checks if any method not implemented, and fill with default implementation
