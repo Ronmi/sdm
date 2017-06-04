@@ -21,9 +21,7 @@ type testTable3 struct {
 func TestCreateTables(t *testing.T) {
 	db := newdb()
 	m := New(db, sqlite3.New())
-	m.Register(testTable1{}, "t1")
-	m.Register(testTable2{}, "t2")
-	m.Register(testTable3{}, "t3")
+	m.Reg(testTable1{}, testTable2{}, testTable3{})
 
 	if err := m.CreateTables(); err != nil {
 		t.Fatalf("error occured when trying to create all table: %s", err)

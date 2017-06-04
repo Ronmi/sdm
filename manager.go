@@ -70,9 +70,27 @@ func (m *Manager) has(t reflect.Type) bool {
 	return false
 }
 
+// Reg calls Register for you, just for short. This stops at first error
+//
+// It will use struct name (convert to lower case) as table name.
+func (m *Manager) Reg(data ...interface{}) (err error) {
+	for _, i := range data {
+		t := reflect.Indirect(reflect.ValueOf(i)).Type()
+		err = m.register(t, strings.ToLower(t.Name()))
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 // Register parses and caches a type into SDM
-func (m *Manager) Register(i interface{}, tableName string) (err error) {
+func (m *Manager) Register(i interface{}, tableName string) error {
 	t := reflect.Indirect(reflect.ValueOf(i)).Type()
+	return m.register(t, tableName)
+}
+
+func (m *Manager) register(t reflect.Type, tableName string) (err error) {
 	if m.has(t) {
 		return
 	}
