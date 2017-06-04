@@ -38,6 +38,6 @@ mgr.Delete(db, "test", result)
 
 # License
 
-Copyright(c) 2016 Ronmi Ren (Chung-ping Jen) <ronmi.ren@gmail.com>
+Copyright(c) 2016-2017 Ronmi Ren (Chung-ping Jen) <ronmi.ren@gmail.com>
 
-GPLv3
+MIT
