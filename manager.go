@@ -8,6 +8,36 @@ import (
 	"sync"
 )
 
+const (
+	indexTypeIndex   = "nrom"
+	indexTypeUnique  = "uniq"
+	indexTypePrimary = "pri"
+)
+
+// IndexDef represents defination of an index
+type IndexDef struct {
+	typ  string
+	name string
+	cols []string
+}
+
+// return -1 if not found
+func findIndexByName(i *[]IndexDef, name, typ string) int {
+	arr := *i
+	for idx, _ := range arr {
+		if arr[idx].name == name {
+			return idx
+		}
+	}
+
+	idx := len(arr)
+	*i = append(arr, IndexDef{
+		typ:  typ,
+		name: name,
+	})
+	return idx
+}
+
 // ColumnDef represents defination of a column, for internal use only
 type ColumnDef struct {
 	id   int    // field id
@@ -17,6 +47,7 @@ type ColumnDef struct {
 
 // Manager is just manager. any question?
 type Manager struct {
+	indexes map[reflect.Type][]IndexDef
 	columns map[reflect.Type]map[string]*ColumnDef
 	fields  map[reflect.Type][]*ColumnDef
 	lock    sync.RWMutex
@@ -26,6 +57,7 @@ type Manager struct {
 // New create sdm manager
 func New(db *sql.DB) *Manager {
 	return &Manager{
+		map[reflect.Type][]IndexDef{},
 		map[reflect.Type]map[string]*ColumnDef{},
 		map[reflect.Type][]*ColumnDef{},
 		sync.RWMutex{},
@@ -56,6 +88,7 @@ func (m *Manager) register(t reflect.Type) (err error) {
 
 	mps := make([]*ColumnDef, 0, t.NumField())
 	idx := make(map[string]*ColumnDef)
+	indexes := []IndexDef{}
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -76,9 +109,21 @@ func (m *Manager) register(t reflect.Type) (err error) {
 
 		fdef := &ColumnDef{id: i, name: col}
 		for _, tag := range tags {
-			switch tag {
-			case "ai":
+			switch {
+			case tag == "ai":
 				fdef.isAI = true
+			case len(tag) > 4 && strings.HasPrefix(tag, "pri_"):
+				name := tag[4:]
+				pos := findIndexByName(&indexes, name, indexTypePrimary)
+				indexes[pos].cols = append(indexes[pos].cols, col)
+			case len(tag) > 4 && strings.HasPrefix(tag, "idx_"):
+				name := tag[4:]
+				pos := findIndexByName(&indexes, name, indexTypeIndex)
+				indexes[pos].cols = append(indexes[pos].cols, col)
+			case len(tag) > 5 && strings.HasPrefix(tag, "uniq_"):
+				name := tag[5:]
+				pos := findIndexByName(&indexes, name, indexTypeUnique)
+				indexes[pos].cols = append(indexes[pos].cols, col)
 			}
 		}
 
@@ -86,6 +131,7 @@ func (m *Manager) register(t reflect.Type) (err error) {
 		idx[col] = fdef
 	}
 
+	m.indexes[t] = indexes
 	m.columns[t] = idx
 	m.fields[t] = mps
 	return

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -12,10 +14,10 @@ import (
 
 type testok struct {
 	Perper       int
-	nonExportInt int       `sdm:"nint"`
-	ExportInt    int       `sdm:"eint"`
-	ExportString string    `sdm:"estr"`
-	ExportTime   time.Time `sdm:"t"`
+	nonExportInt int       `sdm:"nint,idx_a"`
+	ExportInt    int       `sdm:"eint,idx_a,uniq_b"`
+	ExportString string    `sdm:"estr,idx_a"`
+	ExportTime   time.Time `sdm:"t,idx_c"`
 }
 
 type testai struct {
@@ -200,6 +202,38 @@ func TestBuild(t *testing.T) {
 	if cnt != 1 {
 		t.Errorf("There should be only one result after building, but we got %d", cnt)
 	}
+}
+
+func TestIndex(t *testing.T) {
+	typ := reflect.TypeOf(testok{})
+	idx, ok := m.indexes[typ]
+	if !ok {
+		t.Fatalf("No index data found!")
+	}
+	if l := len(idx); l != 3 {
+		t.Errorf("Expected to have 3 indexes, got %d", l)
+	}
+	find := func(typ, name string, cols []string) {
+		sort.Strings(cols)
+		for _, v := range idx {
+			if v.name != name {
+				continue
+			}
+
+			sort.Strings(v.cols)
+			if typ != v.typ {
+				t.Errorf("Expected index %s to be a %s index, get %s", name, typ, v.typ)
+			}
+			if !reflect.DeepEqual(cols, v.cols) {
+				t.Errorf("Expected %s index %s to have %v, got %v", v.typ, name, cols, v.cols)
+			}
+			return
+		}
+		t.Errorf("Expected to have %s index %s, but not found", typ, name)
+	}
+	find(indexTypeIndex, "a", []string{"eint", "estr"})
+	find(indexTypeUnique, "b", []string{"eint"})
+	find(indexTypeIndex, "c", []string{"t"})
 }
 
 func ExampleBuild() {
