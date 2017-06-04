@@ -31,12 +31,16 @@ type testai struct {
 var db *sql.DB
 var m *Manager
 
-func init() {
+func newdb() *sql.DB {
 	conn, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		log.Fatalf("Cannot open sqlite connection: %s", err)
 	}
-	db = conn
+	return conn
+}
+
+func init() {
+	db = newdb()
 
 	s := `CREATE TABLE testai (eint int AUTO_INCREMENT, estr varchar(10), t datetime)`
 	if _, err := db.Exec(s); err != nil {
