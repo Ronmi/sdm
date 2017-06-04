@@ -35,7 +35,7 @@ func TestColumnSQL(t *testing.T) {
 				{Type: driver.IndexTypePrimary, Name: "test_pk", Cols: []string{"id"}},
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INT CONSTRAINT 'test_pk' PRIMARY KEY AUTOINCREMENT,'y' INT,'m' INT,'d' INT,'name' TEXT,CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
+			qstr: `'id' INTEGER CONSTRAINT 'test_pk' PRIMARY KEY AUTOINCREMENT,'y' INTEGER,'m' INTEGER,'d' INTEGER,'name' TEXT,CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
 			msg:  "well-defined struct with auto increment, primary and unique key",
 		},
 		{
@@ -57,7 +57,7 @@ func TestColumnSQL(t *testing.T) {
 				{Type: driver.IndexTypePrimary, Name: "test_pk", Cols: []string{"id"}},
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INT,'y' INT,'m' INT,'d' INT,'name' TEXT,CONSTRAINT 'test_pk' PRIMARY KEY ('id'),CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
+			qstr: `'id' INTEGER,'y' INTEGER,'m' INTEGER,'d' INTEGER,'name' TEXT,CONSTRAINT 'test_pk' PRIMARY KEY ('id'),CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
 			msg:  "well-defined struct with primary and unique key",
 		},
 		{
@@ -78,7 +78,7 @@ func TestColumnSQL(t *testing.T) {
 			idx: []driver.Index{
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INT CONSTRAINT '_pk' PRIMARY KEY AUTOINCREMENT,'y' INT,'m' INT,'d' INT,'name' TEXT,CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
+			qstr: `'id' INTEGER CONSTRAINT '_pk' PRIMARY KEY AUTOINCREMENT,'y' INTEGER,'m' INTEGER,'d' INTEGER,'name' TEXT,CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
 			msg:  "well-defined struct with auto increment and unique key",
 		},
 		{
@@ -99,8 +99,29 @@ func TestColumnSQL(t *testing.T) {
 				{ID: 5, AI: false, Name: "c5"},
 			},
 			idx:  []driver.Index{},
-			qstr: `'id' INT,'c1' REAL,'c2' INT,'c3' DATETIME,'c4' TEXT,'c5' BLOB`,
+			qstr: `'id' INTEGER,'c1' REAL,'c2' INTEGER,'c3' DATETIME,'c4' TEXT,'c5' BLOB`,
 			msg:  "well-defined struct with every type, but no key",
+		},
+		{
+			t: reflect.TypeOf(struct {
+				ID    int    `driver:"id,ai"`
+				Year  int    `driver:"y,idx_birth"`
+				Month int    `driver:"m,idx_birth"`
+				Date  int    `driver:"d,idx_birth"`
+				Name  string `driver:"name"`
+			}{}),
+			col: []driver.Column{
+				{ID: 0, AI: true, Name: "id"},
+				{ID: 1, AI: false, Name: "y"},
+				{ID: 2, AI: false, Name: "m"},
+				{ID: 3, AI: false, Name: "d"},
+				{ID: 4, AI: false, Name: "name"},
+			},
+			idx: []driver.Index{
+				{Type: driver.IndexTypeIndex, Name: "birth", Cols: []string{"y", "m", "d"}},
+			},
+			qstr: `'id' INTEGER CONSTRAINT '_pk' PRIMARY KEY AUTOINCREMENT,'y' INTEGER,'m' INTEGER,'d' INTEGER,'name' TEXT`,
+			msg:  "well-defined struct with auto increment and index key",
 		},
 	}
 
