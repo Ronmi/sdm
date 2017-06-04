@@ -59,12 +59,12 @@ func (b *bulkInsert) Make() (string, []interface{}) {
 
 	paramarr := make([]string, 0, len(b.data))
 	for _, v := range b.def {
-		if v.isAI {
+		if v.AI {
 			continue
 		}
 
-		ids = append(ids, v.id)
-		cols = append(cols, v.name)
+		ids = append(ids, v.ID)
+		cols = append(cols, v.Name)
 		paramarr = append(paramarr, "?")
 	}
 	paramstr := "(" + strings.Join(paramarr, ",") + ")"
@@ -100,9 +100,9 @@ func (b *bulkDelete) Make() (string, []interface{}) {
 
 	paramarr := make([]string, 0, len(b.data))
 	for _, v := range b.def {
-		ids = append(ids, v.id)
-		cols = append(cols, v.name)
-		paramarr = append(paramarr, v.name+"=?")
+		ids = append(ids, v.ID)
+		cols = append(cols, v.Name)
+		paramarr = append(paramarr, v.Name+"=?")
 	}
 	paramstr := "(" + strings.Join(paramarr, " AND ") + ")"
 

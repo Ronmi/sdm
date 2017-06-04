@@ -9,40 +9,40 @@ import (
 )
 
 const (
-	indexTypeIndex   = "nrom"
-	indexTypeUnique  = "uniq"
-	indexTypePrimary = "pri"
+	IndexTypeIndex   = "idx"
+	IndexTypeUnique  = "uniq"
+	IndexTypePrimary = "pri"
 )
 
 // IndexDef represents defination of an index
 type IndexDef struct {
-	typ  string
-	name string
-	cols []string
+	Type string
+	Name string
+	Cols []string
 }
 
 // return -1 if not found
 func findIndexByName(i *[]IndexDef, name, typ string) int {
 	arr := *i
 	for idx, _ := range arr {
-		if arr[idx].name == name {
+		if arr[idx].Name == name {
 			return idx
 		}
 	}
 
 	idx := len(arr)
 	*i = append(arr, IndexDef{
-		typ:  typ,
-		name: name,
+		Type: typ,
+		Name: name,
 	})
 	return idx
 }
 
 // ColumnDef represents defination of a column, for internal use only
 type ColumnDef struct {
-	id   int    // field id
-	isAI bool   // auto increment
-	name string // column name
+	ID   int    // field id
+	AI   bool   // auto increment
+	Name string // column name
 }
 
 // Manager is just manager. any question?
@@ -107,23 +107,28 @@ func (m *Manager) register(t reflect.Type) (err error) {
 		col := tags[0]
 		tags = tags[1:]
 
-		fdef := &ColumnDef{id: i, name: col}
+		fdef := &ColumnDef{ID: i, Name: col}
 		for _, tag := range tags {
-			switch {
-			case tag == "ai":
-				fdef.isAI = true
-			case len(tag) > 4 && strings.HasPrefix(tag, "pri_"):
-				name := tag[4:]
-				pos := findIndexByName(&indexes, name, indexTypePrimary)
-				indexes[pos].cols = append(indexes[pos].cols, col)
-			case len(tag) > 4 && strings.HasPrefix(tag, "idx_"):
-				name := tag[4:]
-				pos := findIndexByName(&indexes, name, indexTypeIndex)
-				indexes[pos].cols = append(indexes[pos].cols, col)
-			case len(tag) > 5 && strings.HasPrefix(tag, "uniq_"):
-				name := tag[5:]
-				pos := findIndexByName(&indexes, name, indexTypeUnique)
-				indexes[pos].cols = append(indexes[pos].cols, col)
+
+			if tag == "ai" {
+				fdef.AI = true
+				continue
+			}
+
+			for _, t := range []string{IndexTypeIndex, IndexTypePrimary, IndexTypeUnique} {
+				l := len(t) + 1
+				if len(tag) <= l {
+					continue
+				}
+
+				if !strings.HasPrefix(tag, t+"_") {
+					continue
+				}
+
+				name := tag[l:]
+				pos := findIndexByName(&indexes, name, t)
+				indexes[pos].Cols = append(indexes[pos].Cols, col)
+				break
 			}
 		}
 
@@ -168,7 +173,7 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
-		c := f.name
+		c := f.Name
 		if table != "" {
 			c = table + "." + c
 		}
@@ -187,10 +192,10 @@ func (m *Manager) ColIns(data interface{}, table string) (ret []string, err erro
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
-		if f.isAI {
+		if f.AI {
 			continue
 		}
-		c := f.name
+		c := f.Name
 		if table != "" {
 			c = table + "." + c
 		}
@@ -212,7 +217,7 @@ func (m *Manager) Val(data interface{}) ([]interface{}, error) {
 
 	ret = make([]interface{}, len(fdef))
 	for k, f := range fdef {
-		ret[k] = v.Field(f.id).Interface()
+		ret[k] = v.Field(f.ID).Interface()
 	}
 	return ret, nil
 }
@@ -229,10 +234,10 @@ func (m *Manager) ValIns(data interface{}) ([]interface{}, error) {
 
 	ret = make([]interface{}, 0, len(fdef))
 	for _, f := range fdef {
-		if f.isAI {
+		if f.AI {
 			continue
 		}
-		ret = append(ret, v.Field(f.id).Interface())
+		ret = append(ret, v.Field(f.ID).Interface())
 	}
 	return ret, nil
 }

@@ -216,24 +216,24 @@ func TestIndex(t *testing.T) {
 	find := func(typ, name string, cols []string) {
 		sort.Strings(cols)
 		for _, v := range idx {
-			if v.name != name {
+			if v.Name != name {
 				continue
 			}
 
-			sort.Strings(v.cols)
-			if typ != v.typ {
-				t.Errorf("Expected index %s to be a %s index, get %s", name, typ, v.typ)
+			sort.Strings(v.Cols)
+			if typ != v.Type {
+				t.Errorf("Expected index %s to be a %s index, get %s", name, typ, v.Type)
 			}
-			if !reflect.DeepEqual(cols, v.cols) {
-				t.Errorf("Expected %s index %s to have %v, got %v", v.typ, name, cols, v.cols)
+			if !reflect.DeepEqual(cols, v.Cols) {
+				t.Errorf("Expected %s index %s to have %v, got %v", v.Type, name, cols, v.Cols)
 			}
 			return
 		}
 		t.Errorf("Expected to have %s index %s, but not found", typ, name)
 	}
-	find(indexTypeIndex, "a", []string{"eint", "estr"})
-	find(indexTypeUnique, "b", []string{"eint"})
-	find(indexTypeIndex, "c", []string{"t"})
+	find(IndexTypeIndex, "a", []string{"eint", "estr"})
+	find(IndexTypeUnique, "b", []string{"eint"})
+	find(IndexTypeIndex, "c", []string{"t"})
 }
 
 func ExampleBuild() {

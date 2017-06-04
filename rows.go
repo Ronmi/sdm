@@ -49,7 +49,7 @@ func (r *Rows) Scan(data interface{}) (err error) {
 
 	holders := make([]interface{}, len(r.columns))
 	for idx, col := range r.columns {
-		vf := vstruct.Field(r.def[col].id)
+		vf := vstruct.Field(r.def[col].ID)
 		vfa := vf.Addr()
 		holders[idx] = vfa.Interface()
 	}
