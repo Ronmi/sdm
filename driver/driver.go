@@ -7,31 +7,31 @@ import (
 )
 
 // Driver is used to generate vendor-specific SQL syntax
-type Driver struct {
+type Driver interface {
 	// Functions to create table
-	CreateTable         func(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error)
-	CreateTableNotExist func(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error)
+	CreateTable(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error)
+	CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error)
 
 	// Quote quotes identifiers like table name or column name
-	Quote func(name string) string
+	Quote(name string) string
 }
 
-func defaultDriverCreateTable(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
+type defaultDriver struct {
+}
+
+func (d defaultDriver) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
 	return nil, errors.New("sdm: driver: CreateTable is not supported in default driver")
 }
-func defaultDriverQuote(name string) string {
+
+func (d defaultDriver) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
+	return nil, errors.New("sdm: driver: CreateTable is not supported in default driver")
+}
+
+func (d defaultDriver) Quote(name string) string {
 	return name
 }
 
 // ValidateDriver checks if any method not implemented, and fill with default implementation
-func ValidateDriver(d *Driver) {
-	if d.CreateTable == nil {
-		d.CreateTable = defaultDriverCreateTable
-	}
-	if d.CreateTableNotExist == nil {
-		d.CreateTableNotExist = defaultDriverCreateTable
-	}
-	if d.Quote == nil {
-		d.Quote = defaultDriverQuote
-	}
+func Default() Driver {
+	return defaultDriver{}
 }

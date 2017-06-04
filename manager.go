@@ -36,15 +36,14 @@ type Manager struct {
 	table   map[reflect.Type]string
 	lock    sync.RWMutex
 	db      *sql.DB
-	drv     *driver.Driver
+	drv     driver.Driver
 }
 
 // New create sdm manager
-func New(db *sql.DB, sdmDriver *driver.Driver) *Manager {
+func New(db *sql.DB, sdmDriver driver.Driver) *Manager {
 	if sdmDriver == nil {
-		sdmDriver = &driver.Driver{}
+		sdmDriver = driver.Default()
 	}
-	driver.ValidateDriver(sdmDriver)
 
 	return &Manager{
 		map[reflect.Type][]driver.Index{},

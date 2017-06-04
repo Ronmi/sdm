@@ -41,6 +41,10 @@ func getType(t reflect.Type) string {
 	panic("sdm: driver: sqlite3: unsupported type " + t.String())
 }
 
+func quote(name string) string {
+	return `'` + strings.Replace(name, `'`, "\\'", -1) + `'`
+}
+
 func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index) string {
 	ret := make([]string, 0, len(cols)+len(indexes))
 
@@ -95,7 +99,10 @@ func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driv
 	return strings.Join(ret, ",")
 }
 
-func createTable(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
+type drv struct {
+}
+
+func (d drv) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
 		"CREATE TABLE '%s' (%s)",
 		name,
@@ -105,7 +112,7 @@ func createTable(db *sql.DB, name string, typ reflect.Type, cols []driver.Column
 	return db.Exec(qstr)
 }
 
-func createTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
+func (d drv) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS '%s' (%s)",
 		name,
@@ -115,15 +122,11 @@ func createTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []drive
 	return db.Exec(qstr)
 }
 
-func quote(name string) string {
-	return `'` + strings.Replace(name, `'`, "\\'", -1) + `'`
+func (d drv) Quote(name string) string {
+	return quote(name)
 }
 
 // New creates a driver instance
-func New() *driver.Driver {
-	return &driver.Driver{
-		CreateTable:         createTable,
-		CreateTableNotExist: createTableNotExist,
-		Quote:               quote,
-	}
+func New() driver.Driver {
+	return drv{}
 }
