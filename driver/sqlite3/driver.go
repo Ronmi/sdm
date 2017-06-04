@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"git.ronmi.tw/ronmi/sdm"
 	"git.ronmi.tw/ronmi/sdm/driver"
 )
 
@@ -42,7 +41,7 @@ func getType(t reflect.Type) string {
 	panic("sdm: driver: sqlite3: unsupported type " + t.String())
 }
 
-func createTableColumnSQL(typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.IndexDef) string {
+func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index) string {
 	ret := make([]string, 0, len(cols)+len(indexes))
 
 	hasAI := false
@@ -54,7 +53,7 @@ func createTableColumnSQL(typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.
 			// in sqlite, auto increment must pair with primary key
 			name := typ.Name() + "_pk"
 			for _, i := range indexes {
-				if i.Type == sdm.IndexTypePrimary {
+				if i.Type == driver.IndexTypePrimary {
 					name = i.Name
 					break
 				}
@@ -72,8 +71,8 @@ func createTableColumnSQL(typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.
 		}
 
 		switch i.Type {
-		case sdm.IndexTypeIndex:
-		case sdm.IndexTypePrimary:
+		case driver.IndexTypeIndex:
+		case driver.IndexTypePrimary:
 			if hasAI {
 				continue
 			}
@@ -82,7 +81,7 @@ func createTableColumnSQL(typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.
 				quote(i.Name),
 				strings.Join(quoted, ","),
 			)
-		case sdm.IndexTypeUnique:
+		case driver.IndexTypeUnique:
 			def = fmt.Sprintf(
 				"CONSTRAINT %s UNIQUE (%s)",
 				quote(i.Name),
@@ -96,7 +95,7 @@ func createTableColumnSQL(typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.
 	return strings.Join(ret, ",")
 }
 
-func createTable(db *sql.DB, name string, typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.IndexDef) (sql.Result, error) {
+func createTable(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
 		"CREATE TABLE '%s' (%s)",
 		name,
@@ -106,7 +105,7 @@ func createTable(db *sql.DB, name string, typ reflect.Type, cols []sdm.ColumnDef
 	return db.Exec(qstr)
 }
 
-func createTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []sdm.ColumnDef, indexes []sdm.IndexDef) (sql.Result, error) {
+func createTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS '%s' (%s)",
 		name,
@@ -121,8 +120,8 @@ func quote(name string) string {
 }
 
 // New creates a driver instance
-func New() driver.Driver {
-	return driver.Driver{
+func New() *driver.Driver {
+	return &driver.Driver{
 		CreateTable:         createTable,
 		CreateTableNotExist: createTableNotExist,
 		Quote:               quote,

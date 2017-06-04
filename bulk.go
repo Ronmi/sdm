@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"git.ronmi.tw/ronmi/sdm/driver"
 )
 
 type Bulk interface {
@@ -19,11 +21,11 @@ type Bulk interface {
 type bulkinfo struct {
 	table string
 	typ   reflect.Type
-	def   []*ColumnDef
+	def   []*driver.Column
 	data  []interface{}
 }
 
-func newBulkInfo(table string, typ reflect.Type, def []*ColumnDef) *bulkinfo {
+func newBulkInfo(table string, typ reflect.Type, def []*driver.Column) *bulkinfo {
 	return &bulkinfo{
 		table,
 		typ,

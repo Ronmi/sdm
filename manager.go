@@ -7,23 +7,12 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-)
 
-const (
-	IndexTypeIndex   = "idx"
-	IndexTypeUnique  = "uniq"
-	IndexTypePrimary = "pri"
+	"git.ronmi.tw/ronmi/sdm/driver"
 )
-
-// IndexDef represents defination of an index
-type IndexDef struct {
-	Type string
-	Name string
-	Cols []string
-}
 
 // return -1 if not found
-func findIndexByName(i *[]IndexDef, name, typ string) int {
+func findIndexByName(i *[]driver.Index, name, typ string) int {
 	arr := *i
 	for idx, _ := range arr {
 		if arr[idx].Name == name {
@@ -32,39 +21,39 @@ func findIndexByName(i *[]IndexDef, name, typ string) int {
 	}
 
 	idx := len(arr)
-	*i = append(arr, IndexDef{
+	*i = append(arr, driver.Index{
 		Type: typ,
 		Name: name,
 	})
 	return idx
 }
 
-// ColumnDef represents defination of a column, for internal use only
-type ColumnDef struct {
-	ID   int    // field id
-	AI   bool   // auto increment
-	Name string // column name
-}
-
 // Manager is just manager. any question?
 type Manager struct {
-	indexes map[reflect.Type][]IndexDef
-	columns map[reflect.Type]map[string]*ColumnDef
-	fields  map[reflect.Type][]*ColumnDef
+	indexes map[reflect.Type][]driver.Index
+	columns map[reflect.Type]map[string]*driver.Column
+	fields  map[reflect.Type][]*driver.Column
 	table   map[reflect.Type]string
 	lock    sync.RWMutex
 	db      *sql.DB
+	drv     *driver.Driver
 }
 
 // New create sdm manager
-func New(db *sql.DB) *Manager {
+func New(db *sql.DB, sdmDriver *driver.Driver) *Manager {
+	if sdmDriver == nil {
+		sdmDriver = &driver.Driver{}
+	}
+	driver.ValidateDriver(sdmDriver)
+
 	return &Manager{
-		map[reflect.Type][]IndexDef{},
-		map[reflect.Type]map[string]*ColumnDef{},
-		map[reflect.Type][]*ColumnDef{},
+		map[reflect.Type][]driver.Index{},
+		map[reflect.Type]map[string]*driver.Column{},
+		map[reflect.Type][]*driver.Column{},
 		map[reflect.Type]string{},
 		sync.RWMutex{},
 		db,
+		sdmDriver,
 	}
 }
 
@@ -90,9 +79,9 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 		return fmt.Errorf("sdm: %s is not a struct type", t.String())
 	}
 
-	mps := make([]*ColumnDef, 0, t.NumField())
-	idx := make(map[string]*ColumnDef)
-	indexes := []IndexDef{}
+	mps := make([]*driver.Column, 0, t.NumField())
+	idx := make(map[string]*driver.Column)
+	indexes := []driver.Index{}
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -111,7 +100,7 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 		col := tags[0]
 		tags = tags[1:]
 
-		fdef := &ColumnDef{ID: i, Name: col}
+		fdef := &driver.Column{ID: i, Name: col}
 		for _, tag := range tags {
 
 			if tag == "ai" {
@@ -119,7 +108,7 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 				continue
 			}
 
-			for _, t := range []string{IndexTypeIndex, IndexTypePrimary, IndexTypeUnique} {
+			for _, t := range []string{driver.IndexTypeIndex, driver.IndexTypePrimary, driver.IndexTypeUnique} {
 				l := len(t) + 1
 				if len(tag) <= l {
 					continue
@@ -147,7 +136,7 @@ func (m *Manager) Register(i interface{}, tableName string) (err error) {
 	return
 }
 
-func (m *Manager) getDef(t reflect.Type) (ret []*ColumnDef, err error) {
+func (m *Manager) getDef(t reflect.Type) (ret []*driver.Column, err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	ret, ok := m.fields[t]
@@ -157,7 +146,7 @@ func (m *Manager) getDef(t reflect.Type) (ret []*ColumnDef, err error) {
 	return
 }
 
-func (m *Manager) getMap(t reflect.Type) (ret map[string]*ColumnDef, err error) {
+func (m *Manager) getMap(t reflect.Type) (ret map[string]*driver.Column, err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	ret, ok := m.columns[t]

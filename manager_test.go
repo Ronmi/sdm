@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"git.ronmi.tw/ronmi/sdm/driver"
+	"git.ronmi.tw/ronmi/sdm/driver/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -50,7 +52,7 @@ func init() {
 	if _, err := db.Exec(s); err != nil {
 		log.Fatalf("Cannot insert preset data into testok: %s", err)
 	}
-	m = New(db)
+	m = New(db, nil)
 
 	// register all types
 	if err := m.Register(testok{}, "testok"); err != nil {
@@ -240,9 +242,9 @@ func TestIndex(t *testing.T) {
 		}
 		t.Errorf("Expected to have %s index %s, but not found", typ, name)
 	}
-	find(IndexTypeIndex, "a", []string{"eint", "estr"})
-	find(IndexTypeUnique, "b", []string{"eint"})
-	find(IndexTypeIndex, "c", []string{"t"})
+	find(driver.IndexTypeIndex, "a", []string{"eint", "estr"})
+	find(driver.IndexTypeUnique, "b", []string{"eint"})
+	find(driver.IndexTypeIndex, "c", []string{"t"})
 }
 
 func ExampleBuild() {
@@ -256,7 +258,7 @@ func ExampleBuild() {
 	}
 	db.Exec(`CREATE TABLE t (c int)`)
 
-	m := New(db)
+	m := New(db, sqlite3.New())
 	m.Register(t{}, "t")
 
 	data := t{1}
