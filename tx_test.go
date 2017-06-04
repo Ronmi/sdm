@@ -16,7 +16,7 @@ func TestTxCommit(t *testing.T) {
 		t.Fatalf("Cannot create transaction for commit: %s", err)
 	}
 
-	if _, err = tx.Insert("testok", data); err != nil {
+	if _, err = tx.Insert(data); err != nil {
 		t.Fatalf("Error inserting data for commit: %s", err)
 	}
 
@@ -43,7 +43,7 @@ func TestTxRollback(t *testing.T) {
 		t.Fatalf("Cannot create transaction for rollback: %s", err)
 	}
 
-	if _, err := tx.Insert("testok", data); err != nil {
+	if _, err := tx.Insert(data); err != nil {
 		t.Fatalf("Error inserting data for rollback: %s", err)
 	}
 

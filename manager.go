@@ -2,6 +2,7 @@ package sdm
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -50,6 +51,7 @@ type Manager struct {
 	indexes map[reflect.Type][]IndexDef
 	columns map[reflect.Type]map[string]*ColumnDef
 	fields  map[reflect.Type][]*ColumnDef
+	table   map[reflect.Type]string
 	lock    sync.RWMutex
 	db      *sql.DB
 }
@@ -60,6 +62,7 @@ func New(db *sql.DB) *Manager {
 		map[reflect.Type][]IndexDef{},
 		map[reflect.Type]map[string]*ColumnDef{},
 		map[reflect.Type][]*ColumnDef{},
+		map[reflect.Type]string{},
 		sync.RWMutex{},
 		db,
 	}
@@ -74,11 +77,12 @@ func (m *Manager) has(t reflect.Type) bool {
 	return false
 }
 
-func (m *Manager) register(t reflect.Type) (err error) {
+// Register parses and caches a type into SDM
+func (m *Manager) Register(i interface{}, tableName string) (err error) {
+	t := reflect.Indirect(reflect.ValueOf(i)).Type()
 	if m.has(t) {
 		return
 	}
-
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -139,34 +143,44 @@ func (m *Manager) register(t reflect.Type) (err error) {
 	m.indexes[t] = indexes
 	m.columns[t] = idx
 	m.fields[t] = mps
+	m.table[t] = tableName
 	return
 }
 
 func (m *Manager) getDef(t reflect.Type) (ret []*ColumnDef, err error) {
-	if err = m.register(t); err != nil {
-		return
-	}
-
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	ret = m.fields[t]
+	ret, ok := m.fields[t]
+	if !ok {
+		err = errors.New("info of type " + t.String() + " not found")
+	}
 	return
 }
 
 func (m *Manager) getMap(t reflect.Type) (ret map[string]*ColumnDef, err error) {
-	if err = m.register(t); err != nil {
-		return
-	}
-
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	ret = m.columns[t]
+	ret, ok := m.columns[t]
+	if !ok {
+		err = errors.New("info of type " + t.String() + " not found")
+	}
+	return
+}
+
+func (m *Manager) getTable(t reflect.Type) (ret string, err error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	ret, ok := m.table[t]
+	if !ok {
+		err = errors.New("info of type " + t.String() + " not found")
+	}
 	return
 }
 
 // Col returns a list of columns in sql format, including AUTO INCREMENT columns
-func (m *Manager) Col(data interface{}, table string) (ret []string, err error) {
-	fdef, err := m.getDef(reflect.Indirect(reflect.ValueOf(data)).Type())
+func (m *Manager) Col(data interface{}) (ret []string, err error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	fdef, err := m.getDef(t)
 	if err != nil {
 		return
 	}
@@ -174,9 +188,6 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 
 	for _, f := range fdef {
 		c := f.Name
-		if table != "" {
-			c = table + "." + c
-		}
 		ret = append(ret, c)
 	}
 
@@ -184,8 +195,9 @@ func (m *Manager) Col(data interface{}, table string) (ret []string, err error) 
 }
 
 // ColIns returns a list of columns in sql format, excluding AUTO INCREMENT columns
-func (m *Manager) ColIns(data interface{}, table string) (ret []string, err error) {
-	fdef, err := m.getDef(reflect.Indirect(reflect.ValueOf(data)).Type())
+func (m *Manager) ColIns(data interface{}) (ret []string, err error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	fdef, err := m.getDef(t)
 	if err != nil {
 		return
 	}
@@ -196,9 +208,6 @@ func (m *Manager) ColIns(data interface{}, table string) (ret []string, err erro
 			continue
 		}
 		c := f.Name
-		if table != "" {
-			c = table + "." + c
-		}
 		ret = append(ret, c)
 	}
 
@@ -300,8 +309,8 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 // Rules above is not validated, YOU MUST TAKE CARE OF IT YOURSELF.
 //
 // Custom parameters are not supported, use Exec instead.
-func (m *Manager) Build(data interface{}, tmpl, table string) (sql.Result, error) {
-	cols, err := m.Col(data, table)
+func (m *Manager) Build(data interface{}, tmpl string) (sql.Result, error) {
+	cols, err := m.Col(data)
 	if err != nil {
 		return nil, err
 	}
@@ -320,13 +329,18 @@ func (m *Manager) Build(data interface{}, tmpl, table string) (sql.Result, error
 	return m.Exec(tmpl, vals...)
 }
 
-func (m *Manager) makeInsert(table string, data interface{}) (qstr string, vals []interface{}, err error) {
+func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{}, err error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return
+	}
 	if vals, err = m.ValIns(data); err != nil {
 		return
 	}
 
 	var cols []string
-	if cols, err = m.ColIns(data, ""); err != nil {
+	if cols, err = m.ColIns(data); err != nil {
 		return
 	}
 
@@ -342,21 +356,27 @@ func (m *Manager) makeInsert(table string, data interface{}) (qstr string, vals 
 
 // Insert inserts data into table.
 // It will skip columns with "ai" tag
-func (m *Manager) Insert(table string, data interface{}) (sql.Result, error) {
-	qstr, vals, err := m.makeInsert(table, data)
+func (m *Manager) Insert(data interface{}) (sql.Result, error) {
+	qstr, vals, err := m.makeInsert(data)
 	if err != nil {
 		return nil, err
 	}
 	return m.db.Exec(qstr, vals...)
 }
 
-func (m *Manager) makeUpdate(table string, data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}, err error) {
+func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}, err error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return
+	}
+
 	if vals, err = m.Val(data); err != nil {
 		return
 	}
 
 	var cols []string
-	if cols, err = m.ColIns(data, ""); err != nil {
+	if cols, err = m.ColIns(data); err != nil {
 		return
 	}
 
@@ -373,21 +393,27 @@ func (m *Manager) makeUpdate(table string, data interface{}, where string, where
 }
 
 // Update updates data in db.
-func (m *Manager) Update(table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
-	qstr, vals, err := m.makeUpdate(table, data, where, whereargs)
+func (m *Manager) Update(data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
+	qstr, vals, err := m.makeUpdate(data, where, whereargs)
 	if err != nil {
 		return nil, err
 	}
 	return m.db.Exec(qstr, vals...)
 }
 
-func (m *Manager) makeDelete(table string, data interface{}) (qstr string, vals []interface{}, err error) {
+func (m *Manager) makeDelete(data interface{}) (qstr string, vals []interface{}, err error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return
+	}
+
 	if vals, err = m.Val(data); err != nil {
 		return
 	}
 
 	var cols []string
-	if cols, err = m.ColIns(data, ""); err != nil {
+	if cols, err = m.ColIns(data); err != nil {
 		return
 	}
 
@@ -401,8 +427,8 @@ func (m *Manager) makeDelete(table string, data interface{}) (qstr string, vals 
 }
 
 // Delete deletes data in db.
-func (m *Manager) Delete(table string, data interface{}) (sql.Result, error) {
-	qstr, vals, err := m.makeDelete(table, data)
+func (m *Manager) Delete(data interface{}) (sql.Result, error) {
+	qstr, vals, err := m.makeDelete(data)
 	if err != nil {
 		return nil, err
 	}
@@ -419,8 +445,12 @@ func (m *Manager) Begin() (*Tx, error) {
 }
 
 // BulkInsert creates a generator to generate long statement which inserts many data at once
-func (m *Manager) BulkInsert(table string, typ interface{}) (Bulk, error) {
+func (m *Manager) BulkInsert(typ interface{}) (Bulk, error) {
 	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return nil, err
+	}
 	def, err := m.getDef(t)
 	if err != nil {
 		return nil, err
@@ -432,8 +462,12 @@ func (m *Manager) BulkInsert(table string, typ interface{}) (Bulk, error) {
 }
 
 // BulkDelete creates a generator to generate long statement which deletes many data at once
-func (m *Manager) BulkDelete(table string, typ interface{}) (Bulk, error) {
+func (m *Manager) BulkDelete(typ interface{}) (Bulk, error) {
 	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
+	table, err := m.getTable(t)
+	if err != nil {
+		return nil, err
+	}
 	def, err := m.getDef(t)
 	if err != nil {
 		return nil, err

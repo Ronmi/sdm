@@ -32,8 +32,8 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 
 // Insert inserts data into table.
 // It will skip columns with "ai" tag
-func (tx *Tx) Insert(table string, data interface{}) (sql.Result, error) {
-	qstr, vals, err := tx.m.makeInsert(table, data)
+func (tx *Tx) Insert(data interface{}) (sql.Result, error) {
+	qstr, vals, err := tx.m.makeInsert(data)
 	if err != nil {
 		return nil, err
 	}
@@ -41,8 +41,8 @@ func (tx *Tx) Insert(table string, data interface{}) (sql.Result, error) {
 }
 
 // Update updates data in db.
-func (tx *Tx) Update(table string, data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
-	qstr, vals, err := tx.m.makeUpdate(table, data, where, whereargs)
+func (tx *Tx) Update(data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
+	qstr, vals, err := tx.m.makeUpdate(data, where, whereargs)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +50,8 @@ func (tx *Tx) Update(table string, data interface{}, where string, whereargs ...
 }
 
 // Delete deletes data in db.
-func (tx *Tx) Delete(table string, data interface{}) (sql.Result, error) {
-	qstr, vals, err := tx.m.makeDelete(table, data)
+func (tx *Tx) Delete(data interface{}) (sql.Result, error) {
+	qstr, vals, err := tx.m.makeDelete(data)
 	if err != nil {
 		return nil, err
 	}

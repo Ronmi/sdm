@@ -51,6 +51,14 @@ func init() {
 		log.Fatalf("Cannot insert preset data into testok: %s", err)
 	}
 	m = New(db)
+
+	// register all types
+	if err := m.Register(testok{}, "testok"); err != nil {
+		log.Fatalf("Error registering testok: %s", err)
+	}
+	if err := m.Register(testai{}, "testai"); err != nil {
+		log.Fatalf("Error registering testai: %s", err)
+	}
 }
 
 func TestScanOK(t *testing.T) {
@@ -100,8 +108,9 @@ func TestInsert(t *testing.T) {
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{1, 2, 3, "insert", ti}
 
-	if _, err := m.Insert("testok", data); err != nil {
-		t.Fatalf("Error inserting data: %s", err)
+	if _, err := m.Insert(data); err != nil {
+		qstr, _, _ := m.makeInsert(data)
+		t.Fatalf("Error inserting data: %s\nSQL: %s", err, qstr)
 	}
 
 	var cnt int
@@ -118,12 +127,12 @@ func TestUpdate(t *testing.T) {
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{1, 2, 3, "update", ti}
 
-	if _, err := m.Insert("testok", data); err != nil {
+	if _, err := m.Insert(data); err != nil {
 		t.Fatalf("Error inserting data for updating: %s", err)
 	}
 
 	data.ExportInt = 4
-	if _, err := m.Update("testok", data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
+	if _, err := m.Update(data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
 		t.Fatalf("Error updating data: %s", err)
 	}
 
@@ -141,11 +150,11 @@ func TestDelete(t *testing.T) {
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{1, 2, 3, "delete", ti}
 
-	if _, err := m.Insert("testok", data); err != nil {
+	if _, err := m.Insert(data); err != nil {
 		t.Fatalf("Error inserting data for deleting: %s", err)
 	}
 
-	if _, err := m.Delete("testok", data); err != nil {
+	if _, err := m.Delete(data); err != nil {
 		t.Fatalf("Error deleting data: %s", err)
 	}
 
@@ -163,7 +172,7 @@ func TestInsertAI(t *testing.T) {
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 	data := testok{ExportString: "insert", ExportTime: ti}
 
-	if _, err := m.Insert("testai", data); err != nil {
+	if _, err := m.Insert(data); err != nil {
 		t.Fatalf("Error inserting ai data: %s", err)
 	}
 
@@ -190,7 +199,7 @@ func TestBuild(t *testing.T) {
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-10-20 08:00:00 +0800")
 	data := testok{2, 3, 4, "build", ti}
 
-	if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`, ""); err != nil {
+	if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`); err != nil {
 		t.Fatalf("Error inserting ai data: %s", err)
 	}
 
@@ -241,15 +250,17 @@ func ExampleBuild() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	m := New(db)
 
-	db.Exec(`CREATE TABLE t (c int)`)
 	type t struct {
 		C int `sdm:"c"`
 	}
+	db.Exec(`CREATE TABLE t (c int)`)
+
+	m := New(db)
+	m.Register(t{}, "t")
 
 	data := t{1}
-	m.Build(data, `INSERT INTO t (%cols%) VALUES (%vals%)`, "")
+	m.Build(data, `INSERT INTO t (%cols%) VALUES (%vals%)`)
 
 	var cnt int
 	row := db.QueryRow(`SELECT COUNT(*) FROM t`)
