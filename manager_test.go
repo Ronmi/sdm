@@ -28,9 +28,6 @@ type testai struct {
 	ExportTime   time.Time `sdm:"t"`
 }
 
-var db *sql.DB
-var m *Manager
-
 func newdb() *sql.DB {
 	conn, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -39,216 +36,227 @@ func newdb() *sql.DB {
 	return conn
 }
 
-func init() {
-	db = newdb()
+func initdb(t *testing.T) (*sql.DB, *Manager) {
+	db := newdb()
+	m := New(db, sqlite3.New())
+
+	if err := m.Reg(testok{}, testai{}); err != nil {
+		t.Fatalf("Error registering: %s", err)
+	}
+	if err := m.CreateTables(); err != nil {
+		t.Fatalf("Error creating tables: %s", err)
+	}
+
+	return db, m
+}
+
+func TestManager(t *testing.T) {
+	db := newdb()
 
 	s := `CREATE TABLE testai (eint int AUTO_INCREMENT, estr varchar(10), t datetime)`
 	if _, err := db.Exec(s); err != nil {
-		log.Fatalf("Cannot create table testai: %s", err)
+		t.Fatalf("Cannot create table testai: %s", err)
 	}
 
 	s = `CREATE TABLE testok (eint int, estr varchar(10), t datetime)`
 	if _, err := db.Exec(s); err != nil {
-		log.Fatalf("Cannot create table testok: %s", err)
+		t.Fatalf("Cannot create table testok: %s", err)
 	}
 
 	s = `INSERT INTO testok (eint, estr, t) VALUES (10, "test", "2016-05-03 00:00:00")`
 	if _, err := db.Exec(s); err != nil {
-		log.Fatalf("Cannot insert preset data into testok: %s", err)
+		t.Fatalf("Cannot insert preset data into testok: %s", err)
 	}
-	m = New(db, nil)
+	m := New(db, nil)
 
 	// register all types
-	if err := m.Register(testok{}, "testok"); err != nil {
-		log.Fatalf("Error registering testok: %s", err)
-	}
-	if err := m.Register(testai{}, "testai"); err != nil {
-		log.Fatalf("Error registering testai: %s", err)
-	}
-}
-
-func TestScanOK(t *testing.T) {
-	var val testok
-
-	rows, err := db.Query(`SELECT * FROM testok`)
-	if err != nil {
-		t.Fatalf("Cannot query select to testok: %s", err)
+	if err := m.Reg(testok{}, testai{}); err != nil {
+		t.Fatalf("Error registering: %s", err)
 	}
 
-	proxy := m.Proxify(rows, val)
-	if proxy.Err() != nil {
-		t.Fatalf("Cannot proxy the sql.Rows with value: %s", err)
-	}
-	proxy = m.Proxify(rows, &val)
-	if proxy.Err() != nil {
-		t.Fatalf("Cannot proxy the sql.Rows with pointer: %s", err)
-	}
-	defer proxy.Close()
-	proxy.Next()
-	if err := proxy.Scan(&val); err != nil {
-		t.Fatalf("Cannot scan: %s", err)
-	}
+	t.Run("Scan OK", func(t *testing.T) {
+		var val testok
 
-	if val.ExportInt != 10 {
-		t.Errorf("ExportInt != 10: %d", val.ExportInt)
-	}
-
-	if val.ExportString != "test" {
-		t.Errorf("ExportString != test: %s", val.ExportString)
-	}
-
-	if val.ExportTime.Unix() != 1462233600 {
-		t.Errorf("ExportTime != 2016-05-03 00:00:00: %s", val.ExportTime.UTC().String())
-	}
-
-	if val.Perper != 0 {
-		t.Errorf("Perper != 0: %d", val.Perper)
-	}
-
-	if val.nonExportInt != 0 {
-		t.Errorf("nonExportInt != 0: %d", val.nonExportInt)
-	}
-}
-
-func TestInsert(t *testing.T) {
-	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-	data := testok{1, 2, 3, "insert", ti}
-
-	if _, err := m.Insert(data); err != nil {
-		qstr, _, _ := m.makeInsert(data)
-		t.Fatalf("Error inserting data: %s\nSQL: %s", err, qstr)
-	}
-
-	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
-	if err := row.Scan(&cnt); err != nil {
-		t.Fatalf("Cannot scan COUNT(eint) for insert: %s", err)
-	}
-	if cnt != 1 {
-		t.Errorf("There should be only one result after inserting, but we got %d", cnt)
-	}
-}
-
-func TestUpdate(t *testing.T) {
-	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-	data := testok{1, 2, 3, "update", ti}
-
-	if _, err := m.Insert(data); err != nil {
-		t.Fatalf("Error inserting data for updating: %s", err)
-	}
-
-	data.ExportInt = 4
-	if _, err := m.Update(data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
-		t.Fatalf("Error updating data: %s", err)
-	}
-
-	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND strftime("%s", t)="1462320000"`)
-	if err := row.Scan(&cnt); err != nil {
-		t.Fatalf("Cannot scan COUNT(eint) for update: %s", err)
-	}
-	if cnt != 1 {
-		t.Errorf("There should be only one result after updating, but we got %d", cnt)
-	}
-}
-
-func TestDelete(t *testing.T) {
-	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-	data := testok{1, 2, 3, "delete", ti}
-
-	if _, err := m.Insert(data); err != nil {
-		t.Fatalf("Error inserting data for deleting: %s", err)
-	}
-
-	if _, err := m.Delete(data); err != nil {
-		t.Fatalf("Error deleting data: %s", err)
-	}
-
-	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="delete" AND strftime("%s", t)="1462320000"`)
-	if err := row.Scan(&cnt); err != nil {
-		t.Fatalf("Cannot scan COUNT(eint) for delete: %s", err)
-	}
-	if cnt != 0 {
-		t.Errorf("There should be only one result after deleting, but we got %d", cnt)
-	}
-}
-
-func TestInsertAI(t *testing.T) {
-	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-	data := testok{ExportString: "insert", ExportTime: ti}
-
-	if _, err := m.Insert(data); err != nil {
-		t.Fatalf("Error inserting ai data: %s", err)
-	}
-
-	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
-	if err := row.Scan(&cnt); err != nil {
-		t.Fatalf("Cannot scan COUNT(eint) for ai insert: %s", err)
-	}
-	if cnt != 1 {
-		t.Errorf("There should be only one result after ai inserting, but we got %d", cnt)
-	}
-}
-
-func TestQueryError(t *testing.T) {
-	data := testok{}
-	rows := m.Query(data, `THIS IS INVALID SQL QUERY`)
-	err := rows.Err()
-	if err == nil {
-		t.Fatal("QueryError should return error, got nil")
-	}
-}
-
-func TestBuild(t *testing.T) {
-	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-10-20 08:00:00 +0800")
-	data := testok{2, 3, 4, "build", ti}
-
-	if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`); err != nil {
-		t.Fatalf("Error inserting ai data: %s", err)
-	}
-
-	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="build" AND strftime("%s", t)="1476921600"`)
-	if err := row.Scan(&cnt); err != nil {
-		t.Fatalf("Cannot scan COUNT(eint) for build: %s", err)
-	}
-	if cnt != 1 {
-		t.Errorf("There should be only one result after building, but we got %d", cnt)
-	}
-}
-
-func TestIndex(t *testing.T) {
-	typ := reflect.TypeOf(testok{})
-	idx, ok := m.indexes[typ]
-	if !ok {
-		t.Fatalf("No index data found!")
-	}
-	if l := len(idx); l != 3 {
-		t.Errorf("Expected to have 3 indexes, got %d", l)
-	}
-	find := func(typ, name string, cols []string) {
-		sort.Strings(cols)
-		for _, v := range idx {
-			if v.Name != name {
-				continue
-			}
-
-			sort.Strings(v.Cols)
-			if typ != v.Type {
-				t.Errorf("Expected index %s to be a %s index, get %s", name, typ, v.Type)
-			}
-			if !reflect.DeepEqual(cols, v.Cols) {
-				t.Errorf("Expected %s index %s to have %v, got %v", v.Type, name, cols, v.Cols)
-			}
-			return
+		rows, err := db.Query(`SELECT * FROM testok`)
+		if err != nil {
+			t.Fatalf("Cannot query select to testok: %s", err)
 		}
-		t.Errorf("Expected to have %s index %s, but not found", typ, name)
-	}
-	find(driver.IndexTypeIndex, "a", []string{"eint", "estr"})
-	find(driver.IndexTypeUnique, "b", []string{"eint"})
-	find(driver.IndexTypeIndex, "c", []string{"t"})
+
+		proxy := m.Proxify(rows, val)
+		if proxy.Err() != nil {
+			t.Fatalf("Cannot proxy the sql.Rows with value: %s", err)
+		}
+		proxy = m.Proxify(rows, &val)
+		if proxy.Err() != nil {
+			t.Fatalf("Cannot proxy the sql.Rows with pointer: %s", err)
+		}
+		defer proxy.Close()
+		proxy.Next()
+		if err := proxy.Scan(&val); err != nil {
+			t.Fatalf("Cannot scan: %s", err)
+		}
+
+		if val.ExportInt != 10 {
+			t.Errorf("ExportInt != 10: %d", val.ExportInt)
+		}
+
+		if val.ExportString != "test" {
+			t.Errorf("ExportString != test: %s", val.ExportString)
+		}
+
+		if val.ExportTime.Unix() != 1462233600 {
+			t.Errorf("ExportTime != 2016-05-03 00:00:00: %s", val.ExportTime.UTC().String())
+		}
+
+		if val.Perper != 0 {
+			t.Errorf("Perper != 0: %d", val.Perper)
+		}
+
+		if val.nonExportInt != 0 {
+			t.Errorf("nonExportInt != 0: %d", val.nonExportInt)
+		}
+	})
+
+	t.Run("Insert", func(t *testing.T) {
+		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+		data := testok{1, 2, 3, "insert", ti}
+
+		if _, err := m.Insert(data); err != nil {
+			qstr, _, _ := m.makeInsert(data)
+			t.Fatalf("Error inserting data: %s\nSQL: %s", err, qstr)
+		}
+
+		var cnt int
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
+		if err := row.Scan(&cnt); err != nil {
+			t.Fatalf("Cannot scan COUNT(eint) for insert: %s", err)
+		}
+		if cnt != 1 {
+			t.Errorf("There should be only one result after inserting, but we got %d", cnt)
+		}
+	})
+
+	t.Run("Update", func(t *testing.T) {
+		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+		data := testok{1, 2, 3, "update", ti}
+
+		if _, err := m.Insert(data); err != nil {
+			t.Fatalf("Error inserting data for updating: %s", err)
+		}
+
+		data.ExportInt = 4
+		if _, err := m.Update(data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
+			t.Fatalf("Error updating data: %s", err)
+		}
+
+		var cnt int
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND strftime("%s", t)="1462320000"`)
+		if err := row.Scan(&cnt); err != nil {
+			t.Fatalf("Cannot scan COUNT(eint) for update: %s", err)
+		}
+		if cnt != 1 {
+			t.Errorf("There should be only one result after updating, but we got %d", cnt)
+		}
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+		data := testok{1, 2, 3, "delete", ti}
+
+		if _, err := m.Insert(data); err != nil {
+			t.Fatalf("Error inserting data for deleting: %s", err)
+		}
+
+		if _, err := m.Delete(data); err != nil {
+			t.Fatalf("Error deleting data: %s", err)
+		}
+
+		var cnt int
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="delete" AND strftime("%s", t)="1462320000"`)
+		if err := row.Scan(&cnt); err != nil {
+			t.Fatalf("Cannot scan COUNT(eint) for delete: %s", err)
+		}
+		if cnt != 0 {
+			t.Errorf("There should be only one result after deleting, but we got %d", cnt)
+		}
+	})
+
+	t.Run("Insert Auto Increment", func(t *testing.T) {
+		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+		data := testok{ExportString: "insert", ExportTime: ti}
+
+		if _, err := m.Insert(data); err != nil {
+			t.Fatalf("Error inserting ai data: %s", err)
+		}
+
+		var cnt int
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
+		if err := row.Scan(&cnt); err != nil {
+			t.Fatalf("Cannot scan COUNT(eint) for ai insert: %s", err)
+		}
+		if cnt != 1 {
+			t.Errorf("There should be only one result after ai inserting, but we got %d", cnt)
+		}
+	})
+
+	t.Run("Query Error", func(t *testing.T) {
+		data := testok{}
+		rows := m.Query(data, `THIS IS INVALID SQL QUERY`)
+		err := rows.Err()
+		if err == nil {
+			t.Fatal("QueryError should return error, got nil")
+		}
+	})
+
+	t.Run("Build", func(t *testing.T) {
+		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-10-20 08:00:00 +0800")
+		data := testok{2, 3, 4, "build", ti}
+
+		if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`); err != nil {
+			t.Fatalf("Error inserting ai data: %s", err)
+		}
+
+		var cnt int
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="build" AND strftime("%s", t)="1476921600"`)
+		if err := row.Scan(&cnt); err != nil {
+			t.Fatalf("Cannot scan COUNT(eint) for build: %s", err)
+		}
+		if cnt != 1 {
+			t.Errorf("There should be only one result after building, but we got %d", cnt)
+		}
+	})
+
+	t.Run("Index", func(t *testing.T) {
+		typ := reflect.TypeOf(testok{})
+		idx, ok := m.indexes[typ]
+		if !ok {
+			t.Fatalf("No index data found!")
+		}
+		if l := len(idx); l != 3 {
+			t.Errorf("Expected to have 3 indexes, got %d", l)
+		}
+		find := func(typ, name string, cols []string) {
+			sort.Strings(cols)
+			for _, v := range idx {
+				if v.Name != name {
+					continue
+				}
+
+				sort.Strings(v.Cols)
+				if typ != v.Type {
+					t.Errorf("Expected index %s to be a %s index, get %s", name, typ, v.Type)
+				}
+				if !reflect.DeepEqual(cols, v.Cols) {
+					t.Errorf("Expected %s index %s to have %v, got %v", v.Type, name, cols, v.Cols)
+				}
+				return
+			}
+			t.Errorf("Expected to have %s index %s, but not found", typ, name)
+		}
+		find(driver.IndexTypeIndex, "a", []string{"eint", "estr"})
+		find(driver.IndexTypeUnique, "b", []string{"eint"})
+		find(driver.IndexTypeIndex, "c", []string{"t"})
+	})
 }
 
 func ExampleBuild() {

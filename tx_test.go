@@ -8,7 +8,9 @@ import (
 )
 
 func TestTxCommit(t *testing.T) {
+	db, m := initdb(t)
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-07-05 08:00:00 +0800")
+	m.Insert(testok{2, 3, 4, "predefined", ti})
 	data := testok{1, 2, 3, "insert", ti}
 
 	tx, err := m.Begin()
@@ -35,7 +37,9 @@ func TestTxCommit(t *testing.T) {
 }
 
 func TestTxRollback(t *testing.T) {
+	db, m := initdb(t)
 	ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-07-05 08:00:00 +0800")
+	m.Insert(testok{2, 3, 4, "predefined", ti})
 	data := testok{1, 2, 3, "update", ti}
 
 	tx, err := m.Begin()
