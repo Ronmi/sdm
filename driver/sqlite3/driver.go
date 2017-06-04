@@ -23,7 +23,7 @@ func getType(t reflect.Type) string {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		fallthrough
 	case reflect.Bool:
-		return "INT"
+		return "INTEGER"
 	case reflect.Float32, reflect.Float64:
 		return "REAL"
 	case reflect.String:
@@ -76,6 +76,7 @@ func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driv
 
 		switch i.Type {
 		case driver.IndexTypeIndex:
+			continue
 		case driver.IndexTypePrimary:
 			if hasAI {
 				continue
