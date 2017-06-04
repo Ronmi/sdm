@@ -8,7 +8,8 @@ import (
 	"sync"
 )
 
-type fielddef struct {
+// ColumnDef represents defination of a column, for internal use only
+type ColumnDef struct {
 	id   int    // field id
 	isAI bool   // auto increment
 	name string // column name
@@ -16,8 +17,8 @@ type fielddef struct {
 
 // Manager is just manager. any question?
 type Manager struct {
-	columns map[reflect.Type]map[string]*fielddef
-	fields  map[reflect.Type][]*fielddef
+	columns map[reflect.Type]map[string]*ColumnDef
+	fields  map[reflect.Type][]*ColumnDef
 	lock    sync.RWMutex
 	db      *sql.DB
 }
@@ -25,8 +26,8 @@ type Manager struct {
 // New create sdm manager
 func New(db *sql.DB) *Manager {
 	return &Manager{
-		map[reflect.Type]map[string]*fielddef{},
-		map[reflect.Type][]*fielddef{},
+		map[reflect.Type]map[string]*ColumnDef{},
+		map[reflect.Type][]*ColumnDef{},
 		sync.RWMutex{},
 		db,
 	}
@@ -53,8 +54,8 @@ func (m *Manager) register(t reflect.Type) (err error) {
 		return fmt.Errorf("sdm: %s is not a struct type", t.String())
 	}
 
-	mps := make([]*fielddef, 0, t.NumField())
-	idx := make(map[string]*fielddef)
+	mps := make([]*ColumnDef, 0, t.NumField())
+	idx := make(map[string]*ColumnDef)
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -73,7 +74,7 @@ func (m *Manager) register(t reflect.Type) (err error) {
 		col := tags[0]
 		tags = tags[1:]
 
-		fdef := &fielddef{id: i, name: col}
+		fdef := &ColumnDef{id: i, name: col}
 		for _, tag := range tags {
 			switch tag {
 			case "ai":
@@ -90,7 +91,7 @@ func (m *Manager) register(t reflect.Type) (err error) {
 	return
 }
 
-func (m *Manager) getDef(t reflect.Type) (ret []*fielddef, err error) {
+func (m *Manager) getDef(t reflect.Type) (ret []*ColumnDef, err error) {
 	if err = m.register(t); err != nil {
 		return
 	}
@@ -101,7 +102,7 @@ func (m *Manager) getDef(t reflect.Type) (ret []*fielddef, err error) {
 	return
 }
 
-func (m *Manager) getMap(t reflect.Type) (ret map[string]*fielddef, err error) {
+func (m *Manager) getMap(t reflect.Type) (ret map[string]*ColumnDef, err error) {
 	if err = m.register(t); err != nil {
 		return
 	}

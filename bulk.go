@@ -19,11 +19,11 @@ type Bulk interface {
 type bulkinfo struct {
 	table string
 	typ   reflect.Type
-	def   []*fielddef
+	def   []*ColumnDef
 	data  []interface{}
 }
 
-func newBulkInfo(table string, typ reflect.Type, def []*fielddef) *bulkinfo {
+func newBulkInfo(table string, typ reflect.Type, def []*ColumnDef) *bulkinfo {
 	return &bulkinfo{
 		table,
 		typ,
