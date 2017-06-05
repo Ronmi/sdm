@@ -319,6 +319,7 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 
 // Build constructs sql query, and executes it with Exec
 //
+// You can use "%table%" as placeholder for table name.
 // There are 3 special place holders to use in template, each for exactly one time most:
 //
 //   %cols%           col, col, col       (must use with %vals%)
@@ -329,6 +330,10 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 //
 // Custom parameters are not supported, use Exec instead.
 func (m *Manager) Build(data interface{}, tmpl string) (sql.Result, error) {
+	table, err := m.getTable(reflect.Indirect(reflect.ValueOf(data)).Type())
+	if err != nil {
+		return nil, err
+	}
 	cols, err := m.Col(data)
 	if err != nil {
 		return nil, err
@@ -342,6 +347,7 @@ func (m *Manager) Build(data interface{}, tmpl string) (sql.Result, error) {
 		sz = 1
 	}
 
+	tmpl = strings.Replace(tmpl, "%table%", m.drv.Quote(table), -1)
 	tmpl = strings.Replace(tmpl, "%cols%", strings.Join(cols, ","), 1)
 	tmpl = strings.Replace(tmpl, "%vals%", "?"+strings.Repeat(",?", sz-1), 1)
 	tmpl = strings.Replace(tmpl, "%combined%", strings.Join(cols, "=?,")+"=?", 1)
