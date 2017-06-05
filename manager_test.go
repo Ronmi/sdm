@@ -2,7 +2,6 @@ package sdm
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"reflect"
 	"sort"
@@ -257,31 +256,4 @@ func TestManager(t *testing.T) {
 		find(driver.IndexTypeUnique, "b", []string{"eint"})
 		find(driver.IndexTypeIndex, "c", []string{"t"})
 	})
-}
-
-func ExampleBuild() {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	type t struct {
-		C int `sdm:"c"`
-	}
-	db.Exec(`CREATE TABLE t (c int)`)
-
-	m := New(db, sqlite3.New())
-	m.Register(t{}, "t")
-
-	data := t{1}
-	m.Build(data, `INSERT INTO t (%cols%) VALUES (%vals%)`)
-
-	var cnt int
-	row := db.QueryRow(`SELECT COUNT(*) FROM t`)
-	if err := row.Scan(&cnt); err != nil {
-		fmt.Printf("Cannot scan COUNT(eint) for build: %s", err)
-		return
-	}
-	fmt.Printf("Got %d record", cnt)
-	// output: Got 1 record
 }
