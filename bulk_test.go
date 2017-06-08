@@ -22,7 +22,7 @@ func TestBulk(t *testing.T) {
 		b.Add(d1)
 		b.Add(d2)
 
-		expectStr := `INSERT INTO testai (estr,t) VALUES (?,?),(?,?)`
+		expectStr := `INSERT INTO 'testai' ('estr','t') VALUES (?,?),(?,?)`
 		expectVal := []interface{}{
 			d1.ExportString, d1.ExportTime,
 			d2.ExportString, d2.ExportTime,
@@ -49,7 +49,7 @@ func TestBulk(t *testing.T) {
 		b.Add(d1)
 		b.Add(d2)
 
-		expectStr := `DELETE FROM testai WHERE (eint=? AND estr=? AND t=?) OR (eint=? AND estr=? AND t=?)`
+		expectStr := `DELETE FROM 'testai' WHERE ('eint'=? AND 'estr'=? AND 't'=?) OR ('eint'=? AND 'estr'=? AND 't'=?)`
 		expectVal := []interface{}{
 			d1.ExportInt, d1.ExportString, d1.ExportTime,
 			d2.ExportInt, d2.ExportString, d2.ExportTime,

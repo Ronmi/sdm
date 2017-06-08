@@ -293,7 +293,7 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 	}
 }
 
-// Query makes SQL query and proxies it
+// Query makes SQL query and proxies it.
 func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 	dbrows, err := m.db.Query(qstr, args...)
 	if err != nil {
@@ -482,7 +482,7 @@ func (m *Manager) BulkInsert(typ interface{}) (Bulk, error) {
 	}
 
 	return &bulkInsert{
-		newBulkInfo(table, t, def),
+		newBulkInfo(table, t, def, m.drv),
 	}, nil
 }
 
@@ -499,7 +499,7 @@ func (m *Manager) BulkDelete(typ interface{}) (Bulk, error) {
 	}
 
 	return &bulkDelete{
-		newBulkInfo(table, t, def),
+		newBulkInfo(table, t, def, m.drv),
 	}, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"git.ronmi.tw/ronmi/sdm/driver"
 )
 
+// Bulk represents batch operations
 type Bulk interface {
 	// Add some elements to be bulk operated
 	Add(data ...interface{}) error
@@ -23,14 +24,16 @@ type bulkinfo struct {
 	typ   reflect.Type
 	def   []driver.Column
 	data  []interface{}
+	drv   driver.Driver
 }
 
-func newBulkInfo(table string, typ reflect.Type, def []driver.Column) *bulkinfo {
+func newBulkInfo(table string, typ reflect.Type, def []driver.Column, drv driver.Driver) *bulkinfo {
 	return &bulkinfo{
 		table,
 		typ,
 		def,
 		[]interface{}{},
+		drv,
 	}
 }
 
@@ -66,7 +69,7 @@ func (b *bulkInsert) Make() (string, []interface{}) {
 		}
 
 		ids = append(ids, v.ID)
-		cols = append(cols, v.Name)
+		cols = append(cols, b.drv.Quote(v.Name))
 		paramarr = append(paramarr, "?")
 	}
 	paramstr := "(" + strings.Join(paramarr, ",") + ")"
@@ -82,7 +85,7 @@ func (b *bulkInsert) Make() (string, []interface{}) {
 
 	qstr := fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES %s`,
-		b.table,
+		b.drv.Quote(b.table),
 		strings.Join(cols, ","),
 		strings.Join(placeholders, ","),
 	)
@@ -103,8 +106,8 @@ func (b *bulkDelete) Make() (string, []interface{}) {
 	paramarr := make([]string, 0, len(b.data))
 	for _, v := range b.def {
 		ids = append(ids, v.ID)
-		cols = append(cols, v.Name)
-		paramarr = append(paramarr, v.Name+"=?")
+		cols = append(cols, b.drv.Quote(v.Name))
+		paramarr = append(paramarr, b.drv.Quote(v.Name)+"=?")
 	}
 	paramstr := "(" + strings.Join(paramarr, " AND ") + ")"
 
@@ -119,7 +122,7 @@ func (b *bulkDelete) Make() (string, []interface{}) {
 
 	qstr := fmt.Sprintf(
 		`DELETE FROM %s WHERE %s`,
-		b.table,
+		b.drv.Quote(b.table),
 		strings.Join(placeholders, " OR "),
 	)
 
