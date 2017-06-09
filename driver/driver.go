@@ -2,7 +2,6 @@ package driver
 
 import (
 	"database/sql"
-	"errors"
 	"reflect"
 )
 
@@ -20,30 +19,3 @@ type Driver interface {
 	Col(table, col string) string    // others
 }
 
-type defaultDriver struct {
-}
-
-func (d defaultDriver) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
-	return nil, errors.New("sdm: driver: CreateTable is not supported in default driver")
-}
-
-func (d defaultDriver) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
-	return nil, errors.New("sdm: driver: CreateTable is not supported in default driver")
-}
-
-func (d defaultDriver) Quote(name string) string {
-	return name
-}
-
-func (d defaultDriver) ColIns(tble, col string) string {
-	return col
-}
-
-func (d defaultDriver) Col(tble, col string) string {
-	return col
-}
-
-// ValidateDriver checks if any method not implemented, and fill with default implementation
-func Default() Driver {
-	return defaultDriver{}
-}
