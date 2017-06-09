@@ -40,11 +40,14 @@ type Manager struct {
 }
 
 // New create sdm manager
-func New(db *sql.DB, driverName string) *Manager {
-	sdmDriver, ok := registeredDrivers[driverName]
-	if !ok {
-		panic(errors.New("sdm: driver " + driverName + " not found"))
-	}
+//
+// Much like database.sql DSN, the driverStr is a plain string specifies which
+// driver to use (and parameters to be passed).
+//
+// Typical driverStr is "driverName" or "driverName:param1=value1;param2=value2",
+// basiclly same as DSN format.
+func New(db *sql.DB, driverStr string) *Manager {
+	sdmDriver := getDriver(driverStr)
 
 	return &Manager{
 		map[reflect.Type][]driver.Index{},

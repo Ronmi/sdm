@@ -136,5 +136,7 @@ func (d drv) Col(table, col string) string {
 }
 
 func init() {
-	RegisterDriver("sqlite3", drv{})
+	RegisterDriver("sqlite3", func(param map[string]string) driver.Driver {
+		return drv{}
+	})
 }

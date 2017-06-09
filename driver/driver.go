@@ -19,3 +19,5 @@ type Driver interface {
 	Col(table, col string) string    // others
 }
 
+// DriverFactory represents a function to create driver.
+type DriverFactory func(params map[string]string) Driver
