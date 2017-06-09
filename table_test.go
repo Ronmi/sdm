@@ -1,10 +1,6 @@
 package sdm
 
-import (
-	"testing"
-
-	"git.ronmi.tw/ronmi/sdm/driver/sqlite3"
-)
+import "testing"
 
 type testTable1 struct {
 	A int `sdm:"a"`
@@ -20,7 +16,7 @@ type testTable3 struct {
 
 func TestCreateTables(t *testing.T) {
 	db := newdb()
-	m := New(db, sqlite3.New())
+	m := New(db, "sqlite3")
 	m.Reg(testTable1{}, testTable2{}, testTable3{})
 
 	if err := m.CreateTables(); err != nil {
@@ -40,7 +36,7 @@ func TestCreateTables(t *testing.T) {
 
 func TestCreateTablesNotExist(t *testing.T) {
 	db := newdb()
-	m := New(db, sqlite3.New())
+	m := New(db, "sqlite3")
 	m.Register(testTable1{}, "t1")
 	m.Register(testTable2{}, "t2")
 

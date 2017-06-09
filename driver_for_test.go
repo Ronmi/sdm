@@ -1,4 +1,4 @@
-package sqlite3
+package sdm
 
 import (
 	"database/sql"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"git.ronmi.tw/ronmi/sdm"
 	"git.ronmi.tw/ronmi/sdm/driver"
 )
 
@@ -137,5 +136,5 @@ func (d drv) Col(table, col string) string {
 }
 
 func init() {
-	sdm.RegisterDriver("sqlite3", drv{})
+	RegisterDriver("sqlite3", drv{})
 }

@@ -40,9 +40,10 @@ type Manager struct {
 }
 
 // New create sdm manager
-func New(db *sql.DB, sdmDriver driver.Driver) *Manager {
-	if sdmDriver == nil {
-		sdmDriver = driver.Default()
+func New(db *sql.DB, driverName string) *Manager {
+	sdmDriver, ok := registeredDrivers[driverName]
+	if !ok {
+		panic(errors.New("sdm: driver " + driverName + " not found"))
 	}
 
 	return &Manager{

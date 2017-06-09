@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"git.ronmi.tw/ronmi/sdm/driver/sqlite3"
+	// This line is commented out to prevent import cycle.
+	// YOU MUST UNCOMMENT THIS LINE TO USE SQLITE3 SDM DRIVER.
+	// _ "git.ronmi.tw/ronmi/sdm/driver/sqlite3"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -46,7 +49,7 @@ func Example() {
 	defer db.Close()
 
 	// create sdm
-	m := New(db, sqlite3.New())
+	m := New(db, "sqlite3")
 
 	// register types
 	m.Reg(Member{}, Group{})
@@ -93,7 +96,7 @@ func ExampleManager_Build() {
 		log.Fatal(err)
 	}
 
-	m := New(db, sqlite3.New())
+	m := New(db, "sqlite3")
 
 	// register types
 	var mem Member
@@ -123,7 +126,7 @@ func ExampleManager_Proxify() {
 		log.Fatal(err)
 	}
 
-	m := New(db, sqlite3.New())
+	m := New(db, "sqlite3")
 
 	// register types
 	var mem Member

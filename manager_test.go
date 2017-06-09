@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"git.ronmi.tw/ronmi/sdm/driver"
-	"git.ronmi.tw/ronmi/sdm/driver/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -37,7 +36,7 @@ func newdb() *sql.DB {
 
 func initdb(t *testing.T) (*sql.DB, *Manager) {
 	db := newdb()
-	m := New(db, sqlite3.New())
+	m := New(db, "sqlite3")
 
 	if err := m.Reg(testok{}, testai{}); err != nil {
 		t.Fatalf("Error registering: %s", err)
@@ -66,7 +65,7 @@ func TestManager(t *testing.T) {
 	if _, err := db.Exec(s); err != nil {
 		t.Fatalf("Cannot insert preset data into testok: %s", err)
 	}
-	m := New(db, nil)
+	m := New(db, "sqlite3")
 
 	// register all types
 	if err := m.Reg(testok{}, testai{}); err != nil {
@@ -166,9 +165,16 @@ func TestManager(t *testing.T) {
 			t.Fatalf("Error inserting data for deleting: %s", err)
 		}
 
-		if _, err := m.Delete(data); err != nil {
+		res, err := m.Delete(data)
+		if err != nil {
 			t.Fatalf("Error deleting data: %s", err)
 		}
+
+		qstr, vars, _ := m.makeDelete(data)
+		t.Logf("Dumping SQL: %s", qstr)
+		t.Logf("Dumping time: %s", vars[2])
+		rowsAffected, _ := res.RowsAffected()
+		t.Logf("Rows affected: %d", rowsAffected)
 
 		var cnt int
 		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="delete" AND strftime("%s", t)="1462320000"`)
