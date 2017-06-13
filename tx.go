@@ -39,7 +39,9 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 // It will skip columns with "ai" tag
 func (tx *Tx) Insert(data interface{}) (sql.Result, error) {
 	qstr, vals := tx.m.makeInsert(data)
-	return tx.tx.Exec(qstr, vals...)
+	res, err := tx.tx.Exec(qstr, vals...)
+	tx.m.tryFillPK(data, res)
+	return res, err
 }
 
 // Update updates data in db.

@@ -502,13 +502,50 @@ func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{})
 	return
 }
 
+func (m *Manager) tryFillPK(data interface{}, res sql.Result) {
+	v := reflect.Indirect(reflect.ValueOf(data))
+	if !v.CanSet() {
+		return
+	}
+
+	t := v.Type()
+	indexes := m.getIndex(t)
+	cols := m.getColumnMap(t)
+	for _, idx := range indexes {
+		if idx.Type != driver.IndexTypePrimary {
+			continue
+		}
+
+		if len(idx.Cols) != 1 {
+			// multiple column key, skip
+			return
+		}
+
+		col := cols[idx.Cols[0]]
+		if !col.AI {
+			// skip if primary key is not auto increment
+			return
+		}
+
+		vf := v.Field(col.ID)
+		id, err := res.LastInsertId()
+		if err != nil || id < 1 {
+			return
+		}
+
+		vf.SetInt(id)
+	}
+}
+
 // Insert inserts data into table.
 // It panics if type is not registered and auto register is not enabled.
 //
 // It will skip columns with "ai" tag
 func (m *Manager) Insert(data interface{}) (sql.Result, error) {
 	qstr, vals := m.makeInsert(data)
-	return m.db.Exec(qstr, vals...)
+	res, err := m.db.Exec(qstr, vals...)
+	m.tryFillPK(data, res)
+	return res, err
 }
 
 func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}) {

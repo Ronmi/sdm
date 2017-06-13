@@ -167,7 +167,7 @@ func TestManager(t *testing.T) {
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 		data := testai{ExportString: "insert", ExportTime: ti}
 
-		if _, err := m.Insert(data); err != nil {
+		if _, err := m.Insert(&data); err != nil {
 			t.Fatalf("Error inserting ai data: %s", err)
 		}
 
@@ -178,6 +178,11 @@ func TestManager(t *testing.T) {
 		}
 		if cnt != 1 {
 			t.Errorf("There should be only one result after ai inserting, but we got %d", cnt)
+		}
+
+		// test for auto insert id
+		if data.ExportInt != 1 {
+			t.Errorf("Failed to set last insert id, get %d", data.ExportInt)
 		}
 	})
 
