@@ -15,7 +15,7 @@ type testTable3 struct {
 }
 
 func TestCreateTables(t *testing.T) {
-	db := newdb()
+	db := newdb(t)
 	m := New(db, "sqlite3")
 	m.Reg(testTable1{}, testTable2{}, testTable3{})
 
@@ -35,7 +35,7 @@ func TestCreateTables(t *testing.T) {
 }
 
 func TestCreateTablesNotExist(t *testing.T) {
-	db := newdb()
+	db := newdb(t)
 	m := New(db, "sqlite3")
 	m.Register(testTable1{}, "t1")
 	m.Register(testTable2{}, "t2")

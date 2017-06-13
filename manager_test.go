@@ -2,7 +2,6 @@ package sdm
 
 import (
 	"database/sql"
-	"log"
 	"reflect"
 	"sort"
 	"testing"
@@ -26,33 +25,16 @@ type testai struct {
 	ExportTime   time.Time `sdm:"t"`
 }
 
-func newdb() *sql.DB {
-	conn, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		log.Fatalf("Cannot open sqlite connection: %s", err)
-	}
-	return conn
-}
-
-func initdb(t *testing.T) (*sql.DB, *Manager) {
-	db := newdb()
-	m := New(db, "sqlite3:time=int")
-
-	if err := m.Reg(testok{}, testai{}); err != nil {
-		t.Fatalf("Error registering: %s", err)
-	}
-	if err := m.CreateTablesNotExist(); err != nil {
-		t.Fatalf("Error creating tables: %s", err)
-	}
-
-	return db, m
-}
-
-func debugDB(t *testing.T, dsn string) (*sql.DB, *Manager) {
-	db, err := sql.Open("sqlite3", dsn)
+func newdb(t *testing.T) *sql.DB {
+	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("Cannot open sqlite connection: %s", err)
 	}
+	return db
+}
+
+func initdb(t *testing.T) (*sql.DB, *Manager) {
+	db := newdb(t)
 	m := New(db, "sqlite3:time=int")
 
 	if err := m.Reg(testok{}, testai{}); err != nil {
@@ -185,7 +167,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Insert Auto Increment", func(t *testing.T) {
-		db, m := debugDB(t, "asd.db")
+		db, m := initdb(t)
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 		data := testai{ExportString: "insert", ExportTime: ti}
 
