@@ -22,4 +22,7 @@
 //
 // As you cn see, SDM does not support foreign key, and possibly never
 // support it. ORM is suggested if you need foreign key mapping.
+//
+// SDM should be safe to use in concurrent environment. Read/write to
+// internal data are lock-protected.
 package sdm
