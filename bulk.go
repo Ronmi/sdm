@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"git.ronmi.tw/ronmi/sdm/driver"
+	"github.com/Ronmi/sdm/driver"
 )
 
 // Bulk represents batch operations

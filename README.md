@@ -11,8 +11,8 @@ import (
 	"database/sql"
 	"log"
 
-	"git.ronmi.tw/ronmi/sdm"
-	"git.ronmi.tw/ronmi/sdm/driver/sqlite3"
+	"github.com/Ronmi/sdm"
+	"github.com/Ronmi/sdm/driver/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 

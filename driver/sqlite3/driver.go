@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	"git.ronmi.tw/ronmi/sdm/driver"
+	"github.com/Ronmi/sdm/driver"
 )
 
 // possible time format, pass in driver param like time=string

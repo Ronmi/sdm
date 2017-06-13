@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"git.ronmi.tw/ronmi/sdm/driver"
+	"github.com/Ronmi/sdm/driver"
 )
 
 // Rows proxies all needed methods of sql.Rows

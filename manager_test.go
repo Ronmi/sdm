@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"git.ronmi.tw/ronmi/sdm/driver"
+	"github.com/Ronmi/sdm/driver"
 	_ "github.com/mattn/go-sqlite3"
 )
 

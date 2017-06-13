@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"git.ronmi.tw/ronmi/sdm/driver"
+	"github.com/Ronmi/sdm/driver"
 )
 
 // return -1 if not found

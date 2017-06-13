@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"git.ronmi.tw/ronmi/sdm/driver"
-	_ "git.ronmi.tw/ronmi/sdm/driver/sqlite3"
+	"github.com/Ronmi/sdm/driver"
+	_ "github.com/Ronmi/sdm/driver/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
