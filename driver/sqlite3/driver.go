@@ -2,40 +2,61 @@ package sqlite3
 
 import (
 	"database/sql"
+	sqlDriver "database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
-	"git.ronmi.tw/ronmi/sdm"
 	"git.ronmi.tw/ronmi/sdm/driver"
 )
 
-var timeType reflect.Type
+// possible time format, pass in driver param like time=string
+const (
+	TimeAsTime   = "time"   // raw time.Time
+	TimeAsInt    = "int"    // integer, unix timestamp
+	TimeAsString = "string" // string format
+)
 
-func init() {
-	timeType = reflect.TypeOf(time.Time{})
-}
+// with time=string, store this format of time in db
+const TimeStringFormat = "2006-01-02T15:04:05-0700"
 
-func getType(t reflect.Type) string {
+func getType(typ reflect.Type, timeAs string) string {
+	t := driver.ElementType(typ)
+
+	// check []byte first
+	switch typ.Kind() {
+	case reflect.Array, reflect.Slice:
+		if t.Kind() == reflect.Uint8 {
+			return "BLOB"
+		}
+	}
+
+	postfix := ""
+	if typ.Kind() != reflect.Ptr {
+		postfix = " NOT NULL"
+	}
+
 	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		fallthrough
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		fallthrough
 	case reflect.Bool:
-		return "INTEGER"
+		return "INTEGER" + postfix
 	case reflect.Float32, reflect.Float64:
-		return "REAL"
+		return "REAL" + postfix
 	case reflect.String:
-		return "TEXT"
-	case reflect.Array, reflect.Slice:
-		if t.Elem().Kind() == reflect.Uint8 {
-			return "BLOB"
-		}
-	case reflect.Struct:
-		if t == timeType {
-			return "DATETIME"
+		return "TEXT" + postfix
+	default:
+		if driver.IsTime(t) {
+			ret := "DATETIME"
+			switch timeAs {
+			case TimeAsString:
+				ret = "TEXT"
+			case TimeAsInt:
+				ret = "INTEGER"
+			}
+			return ret + postfix
 		}
 	}
 
@@ -46,13 +67,13 @@ func quote(name string) string {
 	return `'` + strings.Replace(name, `'`, "\\'", -1) + `'`
 }
 
-func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index) string {
+func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index, timeAs string) string {
 	ret := make([]string, 0, len(cols)+len(indexes))
 
 	hasAI := false
 
 	for _, c := range cols {
-		def := quote(c.Name) + ` ` + getType(typ.Field(c.ID).Type)
+		def := quote(c.Name) + ` ` + getType(typ.Field(c.ID).Type, timeAs)
 		if c.AI {
 			hasAI = true
 			// in sqlite, auto increment must pair with primary key
@@ -102,13 +123,15 @@ func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driv
 }
 
 type drv struct {
+	timeAs string
+	driver.Stub
 }
 
 func (d drv) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
 		"CREATE TABLE '%s' (%s)",
 		name,
-		createTableColumnSQL(typ, cols, indexes),
+		createTableColumnSQL(typ, cols, indexes, d.timeAs),
 	)
 
 	return db.Exec(qstr)
@@ -118,26 +141,72 @@ func (d drv) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols
 	qstr := fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS '%s' (%s)",
 		name,
-		createTableColumnSQL(typ, cols, indexes),
+		createTableColumnSQL(typ, cols, indexes, d.timeAs),
 	)
 
 	return db.Exec(qstr)
 }
 
-func (d drv) Quote(name string) string {
-	return quote(name)
-}
+func (d drv) Col(table, col string, kind driver.QuotingType) string {
+	if kind == driver.QWhere {
+		return quote(table) + "." + quote(col)
+	}
 
-func (d drv) ColIns(table, col string) string {
 	return quote(col)
 }
 
-func (d drv) Col(table, col string) string {
-	return quote(col)
+func (d drv) GetScanner(field reflect.Value) (ret sql.Scanner, ok bool) {
+	ret, ok = d.getWrapper(field)
+	if !ok {
+		ret, ok = d.Stub.GetScanner(field)
+	}
+
+	return
+}
+
+func (d drv) GetValuer(field reflect.Value) (ret sqlDriver.Valuer, ok bool) {
+	ret, ok = d.getWrapper(field)
+	if !ok {
+		ret, ok = d.Stub.GetValuer(field)
+	}
+
+	return
+}
+
+func (d drv) getWrapper(v reflect.Value) (ret wrapper, ok bool) {
+	typ := v.Type()
+
+	if d.timeAs == TimeAsTime {
+		// use stub
+		return
+	}
+
+	if !driver.IsTime(typ) {
+		// not time, use stub
+		return
+	}
+
+	// process Ptr = *time.Time, Struct = time.Time
+	k := typ.Kind()
+	if d.timeAs == TimeAsString {
+		return wrapTimeString{v: v, nullable: k == reflect.Ptr}, true
+	}
+
+	return wrapTimeInt{v: v, nullable: k == reflect.Ptr}, true
 }
 
 func init() {
-	sdm.RegisterDriver("sqlite3", func(p map[string]string) driver.Driver {
-		return drv{}
+	driver.RegisterDriver("sqlite3", func(p map[string]string) driver.Driver {
+		var timeAs = TimeAsTime
+		if t, ok := p["time"]; ok {
+			switch t {
+			case TimeAsString, TimeAsInt:
+				timeAs = t
+			}
+		}
+		return drv{
+			timeAs: timeAs,
+			Stub:   driver.Stub{QuoteFunc: quote},
+		}
 	})
 }
