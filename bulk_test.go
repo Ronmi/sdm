@@ -28,15 +28,15 @@ func TestBulk(t *testing.T) {
 			d2.ExportString, d2.ExportTime.Unix(),
 		}
 		qstr, vals := b.Make()
-		if qstr != expectStr {
+		if qstr[0] != expectStr {
 			t.Errorf("Expect bulk insert generates [%s], got [%s]", expectStr, qstr)
 		}
-		if exp, act := len(expectVal), len(vals); exp != act {
+		if exp, act := len(expectVal), len(vals[0]); exp != act {
 			t.Fatalf("Expected to get %d vals, get %d", exp, act)
 		}
 
 		for idx, exp := range expectVal {
-			i := vals[idx]
+			i := vals[0][idx]
 			if i == exp {
 				continue
 			}
@@ -76,16 +76,16 @@ func TestBulk(t *testing.T) {
 			d2.ExportInt, d2.ExportString, d2.ExportTime.Unix(),
 		}
 		qstr, vals := b.Make()
-		if qstr != expectStr {
+		if qstr[0] != expectStr {
 			t.Errorf("Expect bulk delete generates [%s], got [%s]", expectStr, qstr)
 		}
 
-		if exp, act := len(expectVal), len(vals); exp != act {
+		if exp, act := len(expectVal), len(vals[0]); exp != act {
 			t.Fatalf("Expected to get %d vals, get %d", exp, act)
 		}
 
 		for idx, exp := range expectVal {
-			i := vals[idx]
+			i := vals[0][idx]
 			if i == exp {
 				continue
 			}
