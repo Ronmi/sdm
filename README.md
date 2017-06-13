@@ -13,7 +13,7 @@ import (
 	"log"
 
 	"github.com/Ronmi/sdm"
-	"github.com/Ronmi/sdm/driver/sqlite3"
+	_ "github.com/Ronmi/sdm/driver/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
