@@ -30,7 +30,7 @@ func TestColumnSQL(t *testing.T) {
 				{ID: 1, AI: false, Name: "t"},
 			},
 			idx:  []driver.Index{},
-			qstr: `'id' INTEGER NOT NULL,'t' INTEGER NOT NULL`,
+			qstr: `"id" INTEGER NOT NULL,"t" INTEGER NOT NULL`,
 			msg:  `time as integer (timestamp)`,
 		},
 		{
@@ -44,7 +44,7 @@ func TestColumnSQL(t *testing.T) {
 				{ID: 1, AI: false, Name: "t"},
 			},
 			idx:  []driver.Index{},
-			qstr: `'id' INTEGER NOT NULL,'t' TEXT NOT NULL`,
+			qstr: `"id" INTEGER NOT NULL,"t" TEXT NOT NULL`,
 			msg:  `time as string (formatted string)`,
 		},
 		{
@@ -67,7 +67,7 @@ func TestColumnSQL(t *testing.T) {
 				{Type: driver.IndexTypePrimary, Name: "test_pk", Cols: []string{"id"}},
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INTEGER NOT NULL CONSTRAINT 'test_pk' PRIMARY KEY AUTOINCREMENT,'y' INTEGER NOT NULL,'m' INTEGER NOT NULL,'d' INTEGER NOT NULL,'name' TEXT NOT NULL,CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
+			qstr: `"id" INTEGER NOT NULL CONSTRAINT "test_pk" PRIMARY KEY AUTOINCREMENT,"y" INTEGER NOT NULL,"m" INTEGER NOT NULL,"d" INTEGER NOT NULL,"name" TEXT NOT NULL,CONSTRAINT "birth" UNIQUE ("y","m","d")`,
 			msg:  "well-defined struct with auto increment, primary and unique key",
 		},
 		{
@@ -90,7 +90,7 @@ func TestColumnSQL(t *testing.T) {
 				{Type: driver.IndexTypePrimary, Name: "test_pk", Cols: []string{"id"}},
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INTEGER NOT NULL,'y' INTEGER NOT NULL,'m' INTEGER NOT NULL,'d' INTEGER NOT NULL,'name' TEXT NOT NULL,CONSTRAINT 'test_pk' PRIMARY KEY ('id'),CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
+			qstr: `"id" INTEGER NOT NULL,"y" INTEGER NOT NULL,"m" INTEGER NOT NULL,"d" INTEGER NOT NULL,"name" TEXT NOT NULL,CONSTRAINT "test_pk" PRIMARY KEY ("id"),CONSTRAINT "birth" UNIQUE ("y","m","d")`,
 			msg:  "well-defined struct with primary and unique key",
 		},
 		{
@@ -112,7 +112,7 @@ func TestColumnSQL(t *testing.T) {
 			idx: []driver.Index{
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INTEGER NOT NULL CONSTRAINT '_pk' PRIMARY KEY AUTOINCREMENT,'y' INTEGER NOT NULL,'m' INTEGER NOT NULL,'d' INTEGER NOT NULL,'name' TEXT NOT NULL,CONSTRAINT 'birth' UNIQUE ('y','m','d')`,
+			qstr: `"id" INTEGER NOT NULL CONSTRAINT "_pk" PRIMARY KEY AUTOINCREMENT,"y" INTEGER NOT NULL,"m" INTEGER NOT NULL,"d" INTEGER NOT NULL,"name" TEXT NOT NULL,CONSTRAINT "birth" UNIQUE ("y","m","d")`,
 			msg:  "well-defined struct with auto increment and unique key",
 		},
 		{
@@ -134,7 +134,7 @@ func TestColumnSQL(t *testing.T) {
 				{ID: 5, AI: false, Name: "c5"},
 			},
 			idx:  []driver.Index{},
-			qstr: `'id' INTEGER NOT NULL,'c1' REAL NOT NULL,'c2' INTEGER NOT NULL,'c3' DATETIME NOT NULL,'c4' TEXT NOT NULL,'c5' BLOB`,
+			qstr: `"id" INTEGER NOT NULL,"c1" REAL NOT NULL,"c2" INTEGER NOT NULL,"c3" DATETIME NOT NULL,"c4" TEXT NOT NULL,"c5" BLOB`,
 			msg:  "well-defined struct with every type, but no key",
 		},
 		{
@@ -156,7 +156,7 @@ func TestColumnSQL(t *testing.T) {
 			idx: []driver.Index{
 				{Type: driver.IndexTypeIndex, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: `'id' INTEGER NOT NULL CONSTRAINT '_pk' PRIMARY KEY AUTOINCREMENT,'y' INTEGER NOT NULL,'m' INTEGER NOT NULL,'d' INTEGER NOT NULL,'name' TEXT NOT NULL`,
+			qstr: `"id" INTEGER NOT NULL CONSTRAINT "_pk" PRIMARY KEY AUTOINCREMENT,"y" INTEGER NOT NULL,"m" INTEGER NOT NULL,"d" INTEGER NOT NULL,"name" TEXT NOT NULL`,
 			msg:  "well-defined struct with auto increment and index key",
 		},
 	}

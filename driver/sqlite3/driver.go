@@ -64,7 +64,7 @@ func getType(typ reflect.Type, timeAs string) string {
 }
 
 func quote(name string) string {
-	return `'` + strings.Replace(name, `'`, "\\'", -1) + `'`
+	return `"` + strings.Replace(name, `"`, "\\\"", -1) + `"`
 }
 
 func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index, timeAs string) string {
