@@ -16,7 +16,7 @@ type Bulk interface {
 	Len() int
 
 	// Make sql statement
-	Make() (qstr string, vals []interface{})
+	Make() (qstr []string, vals [][]interface{})
 }
 
 type bulkinfo struct {
@@ -54,9 +54,9 @@ type bulkInsert struct {
 	*bulkinfo
 }
 
-func (b *bulkInsert) Make() (string, []interface{}) {
+func (b *bulkInsert) Make() ([]string, [][]interface{}) {
 	if len(b.data) < 1 {
-		return "", []interface{}{}
+		return []string{}, [][]interface{}{}
 	}
 
 	data := b.data[0]
@@ -81,16 +81,16 @@ func (b *bulkInsert) Make() (string, []interface{}) {
 		strings.Join(placeholders, ","),
 	)
 
-	return qstr, vals
+	return []string{qstr}, [][]interface{}{vals}
 }
 
 type bulkDelete struct {
 	*bulkinfo
 }
 
-func (b *bulkDelete) Make() (string, []interface{}) {
+func (b *bulkDelete) Make() ([]string, [][]interface{}) {
 	if len(b.data) < 1 {
-		return "", []interface{}{}
+		return []string{""}, [][]interface{}{}
 	}
 
 	data := b.data[0]
@@ -118,5 +118,5 @@ func (b *bulkDelete) Make() (string, []interface{}) {
 		strings.Join(placeholders, " OR "),
 	)
 
-	return qstr, vals
+	return []string{qstr}, [][]interface{}{vals}
 }

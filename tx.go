@@ -2,6 +2,7 @@ package sdm
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 )
 
@@ -74,11 +75,23 @@ func (tx *Tx) Tx() *sql.Tx {
 	return tx.tx
 }
 
-// RunBulk executes a bulk operation
+// RunBulk executes a bulk operation. It does not return a result when
+// success and panics if bulk implementation goes wrong.
 func (tx *Tx) RunBulk(b Bulk) (sql.Result, error) {
 	if b.Len() < 1 {
 		return nil, nil
 	}
 	qstr, vals := b.Make()
-	return tx.Tx().Exec(qstr, vals...)
+	if x, y := len(qstr), len(vals); x != y {
+		panic(fmt.Sprintf("Bulk implementation goes wrong: number of query string (%d) and parameters (%d) does not match", x, y))
+	}
+
+	for idx, q := range qstr {
+		v := vals[idx]
+		if res, err := tx.Tx().Exec(q, v...); err != nil {
+			return res, err
+		}
+	}
+
+	return nil, nil
 }

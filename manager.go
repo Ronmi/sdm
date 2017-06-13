@@ -613,11 +613,23 @@ func (m *Manager) BulkDelete(typ interface{}) (Bulk, error) {
 	}, nil
 }
 
-// RunBulk executes a bulk operation
+// RunBulk executes bulk operations in transaction. It does not return a result when
+// success and panics if bulk implementation goes wrong.
 func (m *Manager) RunBulk(b Bulk) (sql.Result, error) {
 	if b.Len() < 1 {
 		return nil, nil
 	}
-	qstr, vals := b.Make()
-	return m.Connection().Exec(qstr, vals...)
+
+	tx, err := m.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	ret, err := tx.RunBulk(b)
+	if err == nil {
+		err = tx.Commit()
+	}
+
+	return ret, err
 }
