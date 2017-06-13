@@ -16,6 +16,7 @@ type Rows struct {
 	columns []string
 	e       error
 	t       reflect.Type
+	drv     driver.Driver
 }
 
 func (r *Rows) err(msg string) error {
@@ -52,8 +53,12 @@ func (r *Rows) Scan(data interface{}) (err error) {
 	holders := make([]interface{}, len(r.columns))
 	for idx, col := range r.columns {
 		vf := vstruct.Field(r.def[col].ID)
-		vfa := vf.Addr()
-		holders[idx] = vfa.Interface()
+
+		if val, ok := r.drv.GetScanner(vf); ok {
+			holders[idx] = val
+		} else {
+			holders[idx] = vf.Addr().Interface()
+		}
 	}
 
 	r.e = r.rows.Scan(holders...)

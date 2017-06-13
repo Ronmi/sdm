@@ -1,7 +1,7 @@
 package sdm
 
 import (
-	"reflect"
+	sqlDriver "database/sql/driver"
 	"testing"
 	"time"
 )
@@ -24,15 +24,36 @@ func TestBulk(t *testing.T) {
 
 		expectStr := `INSERT INTO 'testai' ('estr','t') VALUES (?,?),(?,?)`
 		expectVal := []interface{}{
-			d1.ExportString, d1.ExportTime,
-			d2.ExportString, d2.ExportTime,
+			d1.ExportString, d1.ExportTime.Unix(),
+			d2.ExportString, d2.ExportTime.Unix(),
 		}
 		qstr, vals := b.Make()
 		if qstr != expectStr {
 			t.Errorf("Expect bulk insert generates [%s], got [%s]", expectStr, qstr)
 		}
-		if !reflect.DeepEqual(vals, expectVal) {
-			t.Errorf("Bulk insert fills in wrong order: %#v", vals)
+		if exp, act := len(expectVal), len(vals); exp != act {
+			t.Fatalf("Expected to get %d vals, get %d", exp, act)
+		}
+
+		for idx, exp := range expectVal {
+			i := vals[idx]
+			if i == exp {
+				continue
+			}
+
+			act, ok := i.(sqlDriver.Valuer)
+			if !ok {
+				t.Fatalf("Expected to get %v, got %v", exp, act)
+			}
+
+			iface, err := act.Value()
+			if err != nil {
+				t.Fatalf("Error calling valuer: %s", err)
+			}
+
+			if iface != exp {
+				t.Fatalf("Expect %v, got %v", exp, iface)
+			}
 		}
 	})
 
@@ -49,17 +70,39 @@ func TestBulk(t *testing.T) {
 		b.Add(d1)
 		b.Add(d2)
 
-		expectStr := `DELETE FROM 'testai' WHERE ('eint'=? AND 'estr'=? AND 't'=?) OR ('eint'=? AND 'estr'=? AND 't'=?)`
+		expectStr := `DELETE FROM 'testai' WHERE ('testai'.'eint'=? AND 'testai'.'estr'=? AND 'testai'.'t'=?) OR ('testai'.'eint'=? AND 'testai'.'estr'=? AND 'testai'.'t'=?)`
 		expectVal := []interface{}{
-			d1.ExportInt, d1.ExportString, d1.ExportTime,
-			d2.ExportInt, d2.ExportString, d2.ExportTime,
+			d1.ExportInt, d1.ExportString, d1.ExportTime.Unix(),
+			d2.ExportInt, d2.ExportString, d2.ExportTime.Unix(),
 		}
 		qstr, vals := b.Make()
 		if qstr != expectStr {
 			t.Errorf("Expect bulk delete generates [%s], got [%s]", expectStr, qstr)
 		}
-		if !reflect.DeepEqual(vals, expectVal) {
-			t.Errorf("Bulk delete fills in wrong order: %#v", vals)
+
+		if exp, act := len(expectVal), len(vals); exp != act {
+			t.Fatalf("Expected to get %d vals, get %d", exp, act)
+		}
+
+		for idx, exp := range expectVal {
+			i := vals[idx]
+			if i == exp {
+				continue
+			}
+
+			act, ok := i.(sqlDriver.Valuer)
+			if !ok {
+				t.Fatalf("Expected to get %v, got %v", exp, act)
+			}
+
+			iface, err := act.Value()
+			if err != nil {
+				t.Fatalf("Error calling valuer: %s", err)
+			}
+
+			if iface != exp {
+				t.Fatalf("Expect %v, got %v", exp, iface)
+			}
 		}
 	})
 }

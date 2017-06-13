@@ -22,18 +22,16 @@ type Bulk interface {
 type bulkinfo struct {
 	table string
 	typ   reflect.Type
-	def   []driver.Column
 	data  []interface{}
-	drv   driver.Driver
+	m     *Manager
 }
 
-func newBulkInfo(table string, typ reflect.Type, def []driver.Column, drv driver.Driver) *bulkinfo {
+func newBulkInfo(table string, typ reflect.Type, m *Manager) *bulkinfo {
 	return &bulkinfo{
 		table,
 		typ,
-		def,
 		[]interface{}{},
-		drv,
+		m,
 	}
 }
 
@@ -57,35 +55,28 @@ type bulkInsert struct {
 }
 
 func (b *bulkInsert) Make() (string, []interface{}) {
-	ids := make([]int, 0, len(b.def))
-	cols := make([]string, 0, len(b.def))
-	placeholders := make([]string, 0, len(b.data))
-	vals := make([]interface{}, 0, len(b.data)*len(cols))
-
-	paramarr := make([]string, 0, len(b.data))
-	for _, v := range b.def {
-		if v.AI {
-			continue
-		}
-
-		ids = append(ids, v.ID)
-		cols = append(cols, b.drv.Quote(v.Name))
-		paramarr = append(paramarr, "?")
+	if len(b.data) < 1 {
+		return "", []interface{}{}
 	}
-	paramstr := "(" + strings.Join(paramarr, ",") + ")"
+
+	data := b.data[0]
+	cols, _ := b.m.ColIns(data)
+	l := len(cols)
+	placeholders := make([]string, 0, l)
+	hds, _ := b.m.HolderIns(data)
+	vals := make([]interface{}, 0, len(b.data)*l)
+
+	paramstr := "(" + strings.Join(hds, ",") + ")"
 
 	for _, v := range b.data {
 		placeholders = append(placeholders, paramstr)
-		val := reflect.ValueOf(v)
-
-		for _, fid := range ids {
-			vals = append(vals, val.Field(fid).Interface())
-		}
+		i, _ := b.m.ValIns(v)
+		vals = append(vals, i...)
 	}
 
 	qstr := fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES %s`,
-		b.drv.Quote(b.table),
+		b.m.drv.Quote(b.table),
 		strings.Join(cols, ","),
 		strings.Join(placeholders, ","),
 	)
@@ -98,31 +89,32 @@ type bulkDelete struct {
 }
 
 func (b *bulkDelete) Make() (string, []interface{}) {
-	ids := make([]int, 0, len(b.def))
-	cols := make([]string, 0, len(b.def))
-	placeholders := make([]string, 0, len(b.data))
-	vals := make([]interface{}, 0, len(b.data)*len(cols))
-
-	paramarr := make([]string, 0, len(b.data))
-	for _, v := range b.def {
-		ids = append(ids, v.ID)
-		cols = append(cols, b.drv.Quote(v.Name))
-		paramarr = append(paramarr, b.drv.Quote(v.Name)+"=?")
+	if len(b.data) < 1 {
+		return "", []interface{}{}
 	}
-	paramstr := "(" + strings.Join(paramarr, " AND ") + ")"
+
+	data := b.data[0]
+	cols, _ := b.m.Col(data, driver.QWhere)
+	l := len(cols)
+	hds, _ := b.m.Holder(data)
+	placeholders := make([]string, 0, len(b.data))
+	com := make([]string, l)
+	vals := make([]interface{}, 0, len(b.data)*l)
+
+	for k, v := range cols {
+		com[k] = v + "=" + hds[k]
+	}
+	paramstr := "(" + strings.Join(com, " AND ") + ")"
 
 	for _, v := range b.data {
 		placeholders = append(placeholders, paramstr)
-		val := reflect.ValueOf(v)
-
-		for _, fid := range ids {
-			vals = append(vals, val.Field(fid).Interface())
-		}
+		i, _ := b.m.Val(v)
+		vals = append(vals, i...)
 	}
 
 	qstr := fmt.Sprintf(
 		`DELETE FROM %s WHERE %s`,
-		b.drv.Quote(b.table),
+		b.m.drv.Quote(b.table),
 		strings.Join(placeholders, " OR "),
 	)
 

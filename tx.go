@@ -24,6 +24,7 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 			[]string{},
 			err,
 			t,
+			tx.m.drv,
 		}
 	}
 

@@ -47,7 +47,7 @@ type Manager struct {
 // Typical driverStr is "driverName" or "driverName:param1=value1;param2=value2",
 // basiclly same as DSN format.
 func New(db *sql.DB, driverStr string) *Manager {
-	sdmDriver := getDriver(driverStr)
+	sdmDriver := driver.GetDriver(driverStr)
 
 	return &Manager{
 		map[reflect.Type][]driver.Index{},
@@ -182,7 +182,8 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]driver.Column, err erro
 	return
 }
 
-func (m *Manager) getTable(t reflect.Type) (ret string, err error) {
+// GetTable returns table name of specified type
+func (m *Manager) GetTable(t reflect.Type) (ret string, err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	ret, ok := m.table[t]
@@ -193,9 +194,9 @@ func (m *Manager) getTable(t reflect.Type) (ret string, err error) {
 }
 
 // Col returns a list of columns in sql format, including AUTO INCREMENT columns
-func (m *Manager) Col(data interface{}) (ret []string, err error) {
+func (m *Manager) Col(data interface{}, qType driver.QuotingType) (ret []string, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table, err := m.getTable(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return
 	}
@@ -206,7 +207,29 @@ func (m *Manager) Col(data interface{}) (ret []string, err error) {
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
-		c := m.drv.Col(table, f.Name)
+		c := m.drv.Col(table, f.Name, qType)
+		ret = append(ret, c)
+	}
+
+	return
+}
+
+// ColSel returns a list of columns in sql format, suitable for SELECT query
+func (m *Manager) ColSel(data interface{}) (ret []string, err error) {
+	v := reflect.Indirect(reflect.ValueOf(data))
+	t := v.Type()
+	table, err := m.GetTable(t)
+	if err != nil {
+		return
+	}
+	fdef, err := m.getDef(t)
+	if err != nil {
+		return
+	}
+	ret = make([]string, 0, len(fdef))
+
+	for _, f := range fdef {
+		c := m.drv.Col(table, f.Name, driver.QSelect)
 		ret = append(ret, c)
 	}
 
@@ -216,7 +239,7 @@ func (m *Manager) Col(data interface{}) (ret []string, err error) {
 // ColIns returns a list of columns in sql format, excluding AUTO INCREMENT columns
 func (m *Manager) ColIns(data interface{}) (ret []string, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table, err := m.getTable(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return
 	}
@@ -230,7 +253,7 @@ func (m *Manager) ColIns(data interface{}) (ret []string, err error) {
 		if f.AI {
 			continue
 		}
-		c := m.drv.ColIns(table, f.Name)
+		c := m.drv.Col(table, f.Name, driver.QInsert)
 		ret = append(ret, c)
 	}
 
@@ -249,7 +272,12 @@ func (m *Manager) Val(data interface{}) ([]interface{}, error) {
 
 	ret = make([]interface{}, len(fdef))
 	for k, f := range fdef {
-		ret[k] = v.Field(f.ID).Interface()
+		vfield := v.Field(f.ID)
+		if vsql, ok := m.drv.GetValuer(vfield); ok {
+			ret[k] = vsql
+		} else {
+			ret[k] = vfield.Interface()
+		}
 	}
 	return ret, nil
 }
@@ -269,8 +297,55 @@ func (m *Manager) ValIns(data interface{}) ([]interface{}, error) {
 		if f.AI {
 			continue
 		}
-		ret = append(ret, v.Field(f.ID).Interface())
+
+		vfield := v.Field(f.ID)
+		var res interface{}
+		if vsql, ok := m.drv.GetValuer(vfield); ok {
+			res = vsql
+		} else {
+			res = vfield.Interface()
+		}
+		ret = append(ret, res)
 	}
+	return ret, nil
+}
+
+// Holder converts struct to SQL unnamed placeholders
+func (m *Manager) Holder(data interface{}) ([]string, error) {
+	v := reflect.Indirect(reflect.ValueOf(data))
+	t := v.Type()
+	fdef, err := m.getDef(t)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]string, len(fdef))
+	for k, f := range fdef {
+		vfield := v.Field(f.ID)
+		ret[k] = m.drv.GetPlaceholder(vfield.Type())
+	}
+	return ret, nil
+}
+
+// HolderIns converts struct to SQL unnamed placeholders and skip auto increment fields
+func (m *Manager) HolderIns(data interface{}) ([]string, error) {
+	v := reflect.Indirect(reflect.ValueOf(data))
+	t := v.Type()
+	fdef, err := m.getDef(t)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([]string, 0, len(fdef))
+	for _, f := range fdef {
+		if f.AI {
+			continue
+		}
+
+		vfield := v.Field(f.ID)
+		ret = append(ret, m.drv.GetPlaceholder(vfield.Type()))
+	}
+
 	return ret, nil
 }
 
@@ -294,23 +369,43 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 		c,
 		e,
 		t,
+		m.drv,
 	}
 }
 
+func (m *Manager) createErrorRow(typ reflect.Type, err error) *Rows {
+	f, fail := m.getMap(typ)
+	if fail != nil {
+		err = fail
+	}
+
+	return &Rows{nil, f, []string{}, err, typ, m.drv}
+}
+
 // Query makes SQL query and proxies it.
+//
+// You can use "%table%" as placeholder for table name, %cols% for column names
 func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
+	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
+	if strings.Index(qstr, "%table%") != -1 {
+		table, err := m.GetTable(t)
+		if err != nil {
+			return m.createErrorRow(t, err)
+		}
+		qstr = strings.Replace(qstr, "%table%", m.drv.Quote(table), -1)
+	}
+
+	if strings.Index(qstr, "%cols%") != -1 {
+		cols, err := m.ColSel(typ)
+		if err != nil {
+			return m.createErrorRow(t, err)
+		}
+		qstr = strings.Replace(qstr, "%cols%", strings.Join(cols, ","), 1)
+	}
+
 	dbrows, err := m.db.Query(qstr, args...)
 	if err != nil {
-		t := reflect.Indirect(reflect.ValueOf(typ)).Type()
-		f, _ := m.getMap(t)
-
-		return &Rows{
-			nil,
-			f,
-			[]string{},
-			err,
-			t,
-		}
+		return m.createErrorRow(t, err)
 	}
 
 	return m.Proxify(dbrows, typ)
@@ -333,12 +428,8 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 // Rules above is not validated, YOU MUST TAKE CARE OF IT YOURSELF.
 //
 // Custom parameters are not supported, use Exec instead.
-func (m *Manager) Build(data interface{}, tmpl string) (sql.Result, error) {
-	table, err := m.getTable(reflect.Indirect(reflect.ValueOf(data)).Type())
-	if err != nil {
-		return nil, err
-	}
-	cols, err := m.Col(data)
+func (m *Manager) Build(data interface{}, tmpl string, qType driver.QuotingType) (sql.Result, error) {
+	cols, err := m.Col(data, qType)
 	if err != nil {
 		return nil, err
 	}
@@ -347,20 +438,30 @@ func (m *Manager) Build(data interface{}, tmpl string) (sql.Result, error) {
 		return nil, err
 	}
 	sz := len(vals)
-	if sz < 1 {
-		sz = 1
+
+	hd, _ := m.Holder(data)
+	com := make([]string, sz)
+	for k, v := range hd {
+		com[k] = cols[k] + "=" + v
 	}
 
-	tmpl = strings.Replace(tmpl, "%table%", m.drv.Quote(table), -1)
+	if strings.Index(tmpl, "%table%") != -1 {
+		table, err := m.GetTable(reflect.Indirect(reflect.ValueOf(data)).Type())
+		if err != nil {
+			return nil, err
+		}
+		tmpl = strings.Replace(tmpl, "%table%", m.drv.Quote(table), -1)
+	}
+
 	tmpl = strings.Replace(tmpl, "%cols%", strings.Join(cols, ","), 1)
-	tmpl = strings.Replace(tmpl, "%vals%", "?"+strings.Repeat(",?", sz-1), 1)
-	tmpl = strings.Replace(tmpl, "%combined%", strings.Join(cols, "=?,")+"=?", 1)
+	tmpl = strings.Replace(tmpl, "%vals%", strings.Join(hd, ","), 1)
+	tmpl = strings.Replace(tmpl, "%combined%", strings.Join(com, ","), 1)
 	return m.Exec(tmpl, vals...)
 }
 
 func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{}, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table, err := m.getTable(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return
 	}
@@ -373,12 +474,12 @@ func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{},
 		return
 	}
 
-	holders := "?" + strings.Repeat(",?", len(cols)-1)
+	hd, _ := m.HolderIns(data)
 	qstr = fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES (%s)`,
 		m.drv.Quote(table),
 		strings.Join(cols, ","),
-		holders,
+		strings.Join(hd, ","),
 	)
 	return
 }
@@ -390,12 +491,13 @@ func (m *Manager) Insert(data interface{}) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return m.db.Exec(qstr, vals...)
 }
 
 func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table, err := m.getTable(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return
 	}
@@ -409,10 +511,16 @@ func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interfa
 		return
 	}
 
+	hd, _ := m.Holder(data)
+	com := make([]string, len(hd))
+	for k, v := range hd {
+		com[k] = cols[k] + "=" + v
+	}
+
 	qstr = fmt.Sprintf(
 		`UPDATE %s SET %s WHERE %s`,
 		m.drv.Quote(table),
-		strings.Join(cols, "=?,")+"=?",
+		strings.Join(com, ","),
 		where,
 	)
 	if len(whereargs) > 0 {
@@ -432,7 +540,7 @@ func (m *Manager) Update(data interface{}, where string, whereargs ...interface{
 
 func (m *Manager) makeDelete(data interface{}) (qstr string, vals []interface{}, err error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table, err := m.getTable(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return
 	}
@@ -442,14 +550,20 @@ func (m *Manager) makeDelete(data interface{}) (qstr string, vals []interface{},
 	}
 
 	var cols []string
-	if cols, err = m.ColIns(data); err != nil {
+	if cols, err = m.Col(data, driver.QWhere); err != nil {
 		return
+	}
+
+	hd, _ := m.Holder(data)
+	com := make([]string, len(hd))
+	for k, v := range hd {
+		com[k] = cols[k] + "=" + v
 	}
 
 	qstr = fmt.Sprintf(
 		`DELETE FROM %s WHERE %s`,
 		m.drv.Quote(table),
-		strings.Join(cols, "=? AND ")+"=?",
+		strings.Join(com, " AND "),
 	)
 
 	return
@@ -476,34 +590,26 @@ func (m *Manager) Begin() (*Tx, error) {
 // BulkInsert creates a generator to generate long statement which inserts many data at once
 func (m *Manager) BulkInsert(typ interface{}) (Bulk, error) {
 	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
-	table, err := m.getTable(t)
-	if err != nil {
-		return nil, err
-	}
-	def, err := m.getDef(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return nil, err
 	}
 
 	return &bulkInsert{
-		newBulkInfo(table, t, def, m.drv),
+		newBulkInfo(table, t, m),
 	}, nil
 }
 
 // BulkDelete creates a generator to generate long statement which deletes many data at once
 func (m *Manager) BulkDelete(typ interface{}) (Bulk, error) {
 	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
-	table, err := m.getTable(t)
-	if err != nil {
-		return nil, err
-	}
-	def, err := m.getDef(t)
+	table, err := m.GetTable(t)
 	if err != nil {
 		return nil, err
 	}
 
 	return &bulkDelete{
-		newBulkInfo(table, t, def, m.drv),
+		newBulkInfo(table, t, m),
 	}, nil
 }
 

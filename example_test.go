@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	// This line is commented out to prevent import cycle.
-	// YOU MUST UNCOMMENT THIS LINE TO USE SQLITE3 SDM DRIVER.
-	// _ "git.ronmi.tw/ronmi/sdm/driver/sqlite3"
-
+	"git.ronmi.tw/ronmi/sdm/driver"
+	_ "git.ronmi.tw/ronmi/sdm/driver/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -107,7 +105,7 @@ func ExampleManager_Build() {
 	m.CreateTables()
 
 	data := Group{Name: "Sun Moon Lake"}
-	m.Build(data, `INSERT INTO %table% (%cols%) VALUES (%vals%)`)
+	m.Build(data, `INSERT INTO %table% (%cols%) VALUES (%vals%)`, driver.QInsert)
 
 	// verify db using Go's sql package
 	var cnt int

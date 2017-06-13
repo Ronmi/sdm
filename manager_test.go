@@ -36,12 +36,29 @@ func newdb() *sql.DB {
 
 func initdb(t *testing.T) (*sql.DB, *Manager) {
 	db := newdb()
-	m := New(db, "sqlite3")
+	m := New(db, "sqlite3:time=int")
 
 	if err := m.Reg(testok{}, testai{}); err != nil {
 		t.Fatalf("Error registering: %s", err)
 	}
-	if err := m.CreateTables(); err != nil {
+	if err := m.CreateTablesNotExist(); err != nil {
+		t.Fatalf("Error creating tables: %s", err)
+	}
+
+	return db, m
+}
+
+func debugDB(t *testing.T, dsn string) (*sql.DB, *Manager) {
+	db, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		t.Fatalf("Cannot open sqlite connection: %s", err)
+	}
+	m := New(db, "sqlite3:time=int")
+
+	if err := m.Reg(testok{}, testai{}); err != nil {
+		t.Fatalf("Error registering: %s", err)
+	}
+	if err := m.CreateTablesNotExist(); err != nil {
 		t.Fatalf("Error creating tables: %s", err)
 	}
 
@@ -49,30 +66,13 @@ func initdb(t *testing.T) (*sql.DB, *Manager) {
 }
 
 func TestManager(t *testing.T) {
-	db := newdb()
-
-	s := `CREATE TABLE testai (eint int AUTO_INCREMENT, estr varchar(10), t datetime)`
-	if _, err := db.Exec(s); err != nil {
-		t.Fatalf("Cannot create table testai: %s", err)
-	}
-
-	s = `CREATE TABLE testok (eint int, estr varchar(10), t datetime)`
-	if _, err := db.Exec(s); err != nil {
-		t.Fatalf("Cannot create table testok: %s", err)
-	}
-
-	s = `INSERT INTO testok (eint, estr, t) VALUES (10, "test", "2016-05-03 00:00:00")`
-	if _, err := db.Exec(s); err != nil {
-		t.Fatalf("Cannot insert preset data into testok: %s", err)
-	}
-	m := New(db, "sqlite3")
-
-	// register all types
-	if err := m.Reg(testok{}, testai{}); err != nil {
-		t.Fatalf("Error registering: %s", err)
-	}
 
 	t.Run("Scan OK", func(t *testing.T) {
+		db, m := initdb(t)
+		s := `INSERT INTO testok (eint, estr, t) VALUES (10, "test", 1462233600)`
+		if _, err := db.Exec(s); err != nil {
+			t.Fatalf("Cannot insert preset data into testok: %s", err)
+		}
 		var val testok
 
 		rows, err := db.Query(`SELECT * FROM testok`)
@@ -116,6 +116,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Insert", func(t *testing.T) {
+		db, m := initdb(t)
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 		data := testok{1, 2, 3, "insert", ti}
 
@@ -125,7 +126,7 @@ func TestManager(t *testing.T) {
 		}
 
 		var cnt int
-		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND t="1462320000"`)
 		if err := row.Scan(&cnt); err != nil {
 			t.Fatalf("Cannot scan COUNT(eint) for insert: %s", err)
 		}
@@ -135,6 +136,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Update", func(t *testing.T) {
+		db, m := initdb(t)
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 		data := testok{1, 2, 3, "update", ti}
 
@@ -143,12 +145,12 @@ func TestManager(t *testing.T) {
 		}
 
 		data.ExportInt = 4
-		if _, err := m.Update(data, `eint=? AND estr=? AND strftime("%s", t)="1462320000"`, 3, "update"); err != nil {
+		if _, err := m.Update(data, `eint=? AND estr=? AND t="1462320000"`, 3, "update"); err != nil {
 			t.Fatalf("Error updating data: %s", err)
 		}
 
 		var cnt int
-		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND strftime("%s", t)="1462320000"`)
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND t="1462320000"`)
 		if err := row.Scan(&cnt); err != nil {
 			t.Fatalf("Cannot scan COUNT(eint) for update: %s", err)
 		}
@@ -158,6 +160,8 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
+		db, m := initdb(t)
+
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
 		data := testok{1, 2, 3, "delete", ti}
 
@@ -165,37 +169,32 @@ func TestManager(t *testing.T) {
 			t.Fatalf("Error inserting data for deleting: %s", err)
 		}
 
-		res, err := m.Delete(data)
+		_, err := m.Delete(data)
 		if err != nil {
 			t.Fatalf("Error deleting data: %s", err)
 		}
 
-		qstr, vars, _ := m.makeDelete(data)
-		t.Logf("Dumping SQL: %s", qstr)
-		t.Logf("Dumping time: %s", vars[2])
-		rowsAffected, _ := res.RowsAffected()
-		t.Logf("Rows affected: %d", rowsAffected)
-
 		var cnt int
-		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="delete" AND strftime("%s", t)="1462320000"`)
+		row := db.QueryRow(`SELECT COUNT(*) FROM testok WHERE eint=3 AND estr="delete" AND t="1462320000"`)
 		if err := row.Scan(&cnt); err != nil {
 			t.Fatalf("Cannot scan COUNT(eint) for delete: %s", err)
 		}
 		if cnt != 0 {
-			t.Errorf("There should be only one result after deleting, but we got %d", cnt)
+			t.Errorf("There should be no result after deleting, but we got %d", cnt)
 		}
 	})
 
 	t.Run("Insert Auto Increment", func(t *testing.T) {
+		db, m := debugDB(t, "asd.db")
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
-		data := testok{ExportString: "insert", ExportTime: ti}
+		data := testai{ExportString: "insert", ExportTime: ti}
 
 		if _, err := m.Insert(data); err != nil {
 			t.Fatalf("Error inserting ai data: %s", err)
 		}
 
 		var cnt int
-		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND strftime("%s", t)="1462320000"`)
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testai WHERE estr="insert" AND t="1462320000"`)
 		if err := row.Scan(&cnt); err != nil {
 			t.Fatalf("Cannot scan COUNT(eint) for ai insert: %s", err)
 		}
@@ -205,6 +204,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Query Error", func(t *testing.T) {
+		_, m := initdb(t)
 		data := testok{}
 		rows := m.Query(data, `THIS IS INVALID SQL QUERY`)
 		err := rows.Err()
@@ -214,15 +214,16 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Build", func(t *testing.T) {
+		db, m := initdb(t)
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-10-20 08:00:00 +0800")
 		data := testok{2, 3, 4, "build", ti}
 
-		if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`); err != nil {
+		if _, err := m.Build(data, `INSERT INTO testok (%cols%) VALUES (%vals%)`, driver.QInsert); err != nil {
 			t.Fatalf("Error inserting ai data: %s", err)
 		}
 
 		var cnt int
-		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="build" AND strftime("%s", t)="1476921600"`)
+		row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="build" AND t="1476921600"`)
 		if err := row.Scan(&cnt); err != nil {
 			t.Fatalf("Cannot scan COUNT(eint) for build: %s", err)
 		}
@@ -232,6 +233,7 @@ func TestManager(t *testing.T) {
 	})
 
 	t.Run("Index", func(t *testing.T) {
+		_, m := initdb(t)
 		typ := reflect.TypeOf(testok{})
 		idx, ok := m.indexes[typ]
 		if !ok {
