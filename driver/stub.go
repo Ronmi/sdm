@@ -14,10 +14,23 @@ type wrappable interface {
 // Stub implements most of methods of a Driver.
 //
 // By providing a quote function, most features a driver should implement
-// is prepared for you. Only CreateTables and CreateblesNotExist are
-// required for you to implement.
+// are prepared for you. Only CreateTables and CreateblesNotExist are
+// not supported, and they always panic.
+//
+// Using Stub, you should map nullable columns to fields declared as pointer type.
+// The only exception is string type, in which NULL is always mapped to "".
 type Stub struct {
 	QuoteFunc func(name string) string
+}
+
+// CreateTable is not implemented, panic always.
+func (s Stub) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
+	panic("sdm: driver: Default stub driver does not support table creation!")
+}
+
+// CreateTableNotExist is not implemented, panic always.
+func (s Stub) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
+	panic("sdm: driver: Default stub driver does not support table creation!")
 }
 
 func (s Stub) Quote(name string) string {
@@ -66,4 +79,22 @@ func (s Stub) getWrapper(v reflect.Value) (ret wrappable, ok bool) {
 	}
 
 	return
+}
+
+// RegisterStub helps you to use stub as driver.
+//
+// After registering the stub driver, you can create SDM manager like this
+//
+//     m := sdm.New(conn, "stub")
+func RegisterStub(quoteFunc func(columnName string) (quotedName string)) {
+	RegisterStubAs("stub", quoteFunc)
+}
+
+// RegisterStub is just like RegisterStub, with custom driver name
+func RegisterStubAs(registerAs string, quoteFunc func(columnName string) (quotedName string)) {
+	RegisterDriver(registerAs, func(p map[string]string) Driver {
+		return Stub{
+			QuoteFunc: quoteFunc,
+		}
+	})
 }
