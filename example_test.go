@@ -11,6 +11,11 @@ import (
 )
 
 func Example() {
+	// You'll have to import sqlite3 SDM driver to use SDM with sqlite:
+	// import _ "github.com/Ronmi/sdm/driver/sqlite3"
+	//
+	// see package driver for more info about writing your driver in seconds.
+
 	// Member represents a member in a group
 	//
 	// Inline comments are *DEMO*, sqlite3 driver will generate those for you
@@ -52,20 +57,25 @@ func Example() {
 	// register types
 	m.Reg(Group{}, Member{})
 
-	// create table in db
-	m.CreateTables()
+	// It is suggested to manage DB schema on your own.
+	// If you really want, SDM can create tables.
+	m.CreateTablesNotExist()
 
-	// insert record into table
-	if _, err := m.Insert(Group{Name: "Star Force"}); err != nil {
+	g := Group{Name: "Star Force"}
+	// insert records into table
+	if _, err := m.Insert(&g); err != nil { // pointer type, will try to fill ID
 		log.Fatal(err)
 	}
-	if _, err := m.Insert(Member{GroupID: 1, Position: "DD", ColdDown: 8}); err != nil {
+	// value type, does not fill ID
+	if _, err := m.Insert(Member{GroupID: g.ID, Position: "DD", ColdDown: 8}); err != nil {
 		log.Fatal(err)
 	}
 
 	var grp Group
 	// make a query
 	r := m.Query(grp, `SELECT * FROM 'group'`)
+	// bit faster but acts same as
+	// r := m.Query(grp, `SELECT %cols% FROM %table%`)
 	defer r.Close()
 
 	for r.Next() {

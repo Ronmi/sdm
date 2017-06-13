@@ -1,6 +1,6 @@
 // package sdm is a simple tool to map go struc to/from SQL table
 //
-// For those who are busy or lazy: see example to get it done quick.
+// For those who are busy or lazy: see package example.
 //
 // SDM follows go idiom: adding tags to struct field, SDM parses tags
 // and decides what to do.
