@@ -15,7 +15,7 @@ type Bulk interface {
 	// current data length, Manager and Tx will not do execution if Len returns 0
 	Len() int
 
-	// Make sql statement
+	// Make sql statement.
 	Make() (qstr []string, vals [][]interface{})
 }
 
@@ -60,17 +60,17 @@ func (b *bulkInsert) Make() ([]string, [][]interface{}) {
 	}
 
 	data := b.data[0]
-	cols, _ := b.m.ColIns(data)
+	cols := b.m.ColIns(data)
 	l := len(cols)
 	placeholders := make([]string, 0, l)
-	hds, _ := b.m.HolderIns(data)
+	hds := b.m.HolderIns(data)
 	vals := make([]interface{}, 0, len(b.data)*l)
 
 	paramstr := "(" + strings.Join(hds, ",") + ")"
 
 	for _, v := range b.data {
 		placeholders = append(placeholders, paramstr)
-		i, _ := b.m.ValIns(v)
+		i := b.m.ValIns(v)
 		vals = append(vals, i...)
 	}
 
@@ -94,9 +94,9 @@ func (b *bulkDelete) Make() ([]string, [][]interface{}) {
 	}
 
 	data := b.data[0]
-	cols, _ := b.m.Col(data, driver.QWhere)
+	cols := b.m.Col(data, driver.QWhere)
 	l := len(cols)
-	hds, _ := b.m.Holder(data)
+	hds := b.m.Holder(data)
 	placeholders := make([]string, 0, len(b.data))
 	com := make([]string, l)
 	vals := make([]interface{}, 0, len(b.data)*l)
@@ -108,7 +108,7 @@ func (b *bulkDelete) Make() ([]string, [][]interface{}) {
 
 	for _, v := range b.data {
 		placeholders = append(placeholders, paramstr)
-		i, _ := b.m.Val(v)
+		i := b.m.Val(v)
 		vals = append(vals, i...)
 	}
 

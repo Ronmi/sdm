@@ -13,11 +13,12 @@ type Tx struct {
 }
 
 // Query makes SQL query and proxies it
+// It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 	dbrows, err := tx.tx.Query(qstr, args...)
 	if err != nil {
 		t := reflect.Indirect(reflect.ValueOf(typ)).Type()
-		f, _ := tx.m.getMap(t)
+		f := tx.m.getMap(t)
 
 		return &Rows{
 			nil,
@@ -33,30 +34,25 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 }
 
 // Insert inserts data into table.
+// It panics if type is not registered and auto register is not enabled.
+//
 // It will skip columns with "ai" tag
 func (tx *Tx) Insert(data interface{}) (sql.Result, error) {
-	qstr, vals, err := tx.m.makeInsert(data)
-	if err != nil {
-		return nil, err
-	}
+	qstr, vals := tx.m.makeInsert(data)
 	return tx.tx.Exec(qstr, vals...)
 }
 
 // Update updates data in db.
+// It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Update(data interface{}, where string, whereargs ...interface{}) (sql.Result, error) {
-	qstr, vals, err := tx.m.makeUpdate(data, where, whereargs)
-	if err != nil {
-		return nil, err
-	}
+	qstr, vals := tx.m.makeUpdate(data, where, whereargs)
 	return tx.tx.Exec(qstr, vals...)
 }
 
 // Delete deletes data in db.
+// It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Delete(data interface{}) (sql.Result, error) {
-	qstr, vals, err := tx.m.makeDelete(data)
-	if err != nil {
-		return nil, err
-	}
+	qstr, vals := tx.m.makeDelete(data)
 	return tx.tx.Exec(qstr, vals...)
 }
 

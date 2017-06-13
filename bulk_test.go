@@ -14,10 +14,7 @@ func TestBulk(t *testing.T) {
 		d1 := testai{1, "bulk insert", ti}
 		d2 := testai{2, "bulk insert", ti}
 
-		b, err := m.BulkInsert(d1)
-		if err != nil {
-			t.Fatalf("Cannot create bulk insert object: %s", err)
-		}
+		b := m.BulkInsert(d1)
 
 		b.Add(d1)
 		b.Add(d2)
@@ -62,10 +59,7 @@ func TestBulk(t *testing.T) {
 		d1 := testai{1, "bulk insert", ti}
 		d2 := testai{2, "bulk insert", ti}
 
-		b, err := m.BulkDelete(d1)
-		if err != nil {
-			t.Fatalf("Cannot create bulk delete object: %s", err)
-		}
+		b := m.BulkDelete(d1)
 
 		b.Add(d1)
 		b.Add(d2)

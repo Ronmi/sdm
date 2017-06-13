@@ -37,12 +37,8 @@ func initdb(t *testing.T) (*sql.DB, *Manager) {
 	db := newdb(t)
 	m := New(db, "sqlite3:time=int")
 
-	if err := m.Reg(testok{}, testai{}); err != nil {
-		t.Fatalf("Error registering: %s", err)
-	}
-	if err := m.CreateTablesNotExist(); err != nil {
-		t.Fatalf("Error creating tables: %s", err)
-	}
+	m.Reg(testok{}, testai{})
+	m.CreateTablesNotExist()
 
 	return db, m
 }
@@ -103,7 +99,7 @@ func TestManager(t *testing.T) {
 		data := testok{1, 2, 3, "insert", ti}
 
 		if _, err := m.Insert(data); err != nil {
-			qstr, _, _ := m.makeInsert(data)
+			qstr, _ := m.makeInsert(data)
 			t.Fatalf("Error inserting data: %s\nSQL: %s", err, qstr)
 		}
 
