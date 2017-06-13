@@ -114,6 +114,11 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 	idx := make(map[string]driver.Column)
 	indexes := []driver.Index{}
 
+	// some flags
+	havePK := false
+	var lastAIField *driver.Column
+	aiFieldCnt := 0
+
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		tag := f.Tag.Get("sdm")
@@ -136,6 +141,8 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 
 			if tag == "ai" {
 				fdef.AI = true
+				aiFieldCnt++
+				lastAIField = &fdef
 				continue
 			}
 
@@ -152,6 +159,9 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 				name := tag[l:]
 				pos := findIndexByName(&indexes, name, t)
 				indexes[pos].Cols = append(indexes[pos].Cols, col)
+				if t == driver.IndexTypePrimary {
+					havePK = true
+				}
 				break
 			}
 		}
@@ -160,10 +170,49 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 		idx[col] = fdef
 	}
 
+	if !havePK && aiFieldCnt == 1 {
+		// Use AI field as primary key
+		indexes = append(indexes, driver.Index{
+			Type: driver.IndexTypePrimary,
+			Name: tableName + "_" + "pk",
+			Cols: []string{lastAIField.Name},
+		})
+	}
+
 	m.indexes[t] = indexes
 	m.columns[t] = idx
 	m.fields[t] = mps
 	m.table[t] = tableName
+}
+
+func (m *Manager) getIndex(t reflect.Type) (ret []driver.Index) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	ret, ok := m.indexes[t]
+	if !ok {
+		if !m.AutoReg {
+			panic("info of type " + t.String() + " not found")
+		}
+
+		m.register(t, strings.ToLower(t.Name()))
+		return m.getIndex(t)
+	}
+	return
+}
+
+func (m *Manager) getColumnMap(t reflect.Type) (ret map[string]driver.Column) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	ret, ok := m.columns[t]
+	if !ok {
+		if !m.AutoReg {
+			panic("info of type " + t.String() + " not found")
+		}
+
+		m.register(t, strings.ToLower(t.Name()))
+		return m.getColumnMap(t)
+	}
+	return
 }
 
 func (m *Manager) getDef(t reflect.Type) (ret []driver.Column) {
