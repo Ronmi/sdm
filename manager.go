@@ -2,6 +2,7 @@ package sdm
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -245,6 +246,30 @@ func (m *Manager) getMap(t reflect.Type) (ret map[string]driver.Column) {
 	return
 }
 
+func (m *Manager) getPK(t reflect.Type) (ret driver.Index, ok bool) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	idx, ok := m.indexes[t]
+	if !ok {
+		if !m.AutoReg {
+			panic("info of type " + t.String() + " not found")
+		}
+
+		m.register(t, strings.ToLower(t.Name()))
+		return m.getPK(t)
+	}
+
+	for _, i := range idx {
+		if i.Type != driver.IndexTypePrimary {
+			continue
+		}
+
+		return i, true
+	}
+
+	return
+}
+
 // GetTable returns table name of specified type.
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) GetTable(t reflect.Type) (ret string) {
@@ -441,10 +466,40 @@ func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows
 
 	dbrows, err := m.db.Query(qstr, args...)
 	if err != nil {
-		return &Rows{nil, m.getMap(t), []string{}, err, t, m.drv}
+		return m.createErrorRow(t, err)
 	}
 
 	return m.Proxify(dbrows, typ)
+}
+
+// LoadSimple loads simple table
+//
+// Simple table is a table with single-column primary key
+func (m *Manager) LoadSimple(data, pkVal interface{}) error {
+	qstr := `SELECT %cols% FROM %table% WHERE `
+	v := reflect.Indirect(reflect.ValueOf(data))
+	if !v.CanSet() {
+		return errors.New("Need pointer type to scan value")
+	}
+	t := v.Type()
+	pk, ok := m.getPK(t)
+	if !ok {
+		return errors.New(t.Name() + " does not have a primary key")
+	}
+
+	if len(pk.Cols) != 1 {
+		return errors.New(t.Name() + " has more than 1 column")
+	}
+
+	cols := m.getColumnMap(t)
+	f := v.Field(cols[pk.Cols[0]].ID)
+	qstr += m.drv.Col(m.GetTable(t), pk.Cols[0], driver.QWhere) + `=` + m.drv.GetPlaceholder(f.Type())
+	rows := m.Query(data, qstr, pkVal)
+	for rows.Next() {
+		rows.Scan(data)
+	}
+
+	return rows.Err()
 }
 
 // Exec warps sql.DB.Exec

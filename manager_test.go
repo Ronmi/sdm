@@ -113,6 +113,31 @@ func TestManager(t *testing.T) {
 		}
 	})
 
+	t.Run("LoadSimple", func(t *testing.T) {
+		_, m := initdb(t)
+
+		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
+		data := testai{0, "load simple", ti}
+
+		if _, err := m.Insert(data); err != nil {
+			t.Fatalf("Error inserting data: %s", err)
+		}
+
+		var target testai
+		if err := m.LoadSimple(&target, 1); err != nil {
+			t.Fatalf("Error loading from simple table: %s", err)
+		}
+		if target.ExportInt != 1 {
+			t.Errorf("Data mispatch: expect eint to be 1, got %d", target.ExportInt)
+		}
+		if target.ExportString != "load simple" {
+			t.Errorf("Data mispatch: expect estr to be 'load simple', got '%s'", target.ExportString)
+		}
+		if target.ExportTime != ti {
+			t.Errorf("Data mispatch: expect t to be %d, got %d", ti.Unix(), target.ExportTime.Unix())
+		}
+	})
+
 	t.Run("Update", func(t *testing.T) {
 		db, m := initdb(t)
 		ti, _ := time.Parse("2006-01-02 15:04:05 -0700", "2016-05-04 08:00:00 +0800")
