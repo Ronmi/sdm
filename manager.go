@@ -540,7 +540,15 @@ func (m *Manager) tryFillPK(data interface{}, res sql.Result) {
 // Insert inserts data into table.
 // It panics if type is not registered and auto register is not enabled.
 //
-// It will skip columns with "ai" tag
+// It will skip columns with "ai" tag.
+//
+// If following restrstions are fulfilled, primary key is filled back to data:
+//
+//   - data is settable (pointer type)
+//   - DB and DB driver supports sql.Result.LastInsertId()
+//   - Table has exactly one primary key.
+//   - Prmary key contains exactly ne column.
+//   - The column is AUTO INCREMENT enabled.
 func (m *Manager) Insert(data interface{}) (sql.Result, error) {
 	qstr, vals := m.makeInsert(data)
 	res, err := m.db.Exec(qstr, vals...)

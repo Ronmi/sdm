@@ -180,3 +180,37 @@ func ExampleManager_Proxify() {
 	// output: Moon Moon
 	//
 }
+
+func ExampleManager_Insert() {
+	// Group represents a group of people
+	//
+	// Inline comments are *DEMO*, sqlite3 driver will generate those for you
+	// when you call CreateTables
+	type Group struct {
+		// CONSTRAINT group_pk PRIMARY KEY (id) AUTOINCREMENT
+		ID int `sdm:"id,ai"` // id INTEGER
+
+		// CONSTRAINT group_name UNIQUE (name)
+		Name string `sdm:"name,uniq_group_name"` // name TEXT
+	}
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m := New(db, "sqlite3")
+
+	// register types
+	grp := Group{Name: "Dolan"}
+	m.Reg(grp)
+
+	// create table in db
+	m.CreateTables()
+
+	// calling insert with pointer type, let SDM fill ID field for you
+	m.Insert(&grp)
+
+	fmt.Printf("Group ID: %d", grp.ID)
+	// output: Group ID: 1
+}
