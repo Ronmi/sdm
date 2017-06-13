@@ -10,35 +10,35 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Member represents a member in a group
-//
-// Inline comments are *DEMO*, sqlite3 driver will generate those for you
-// when you call CreateTables
-type Member struct {
-	// CONSTRAINT member_pk PRIMARY KEY (id) AUTOINCREMENT
-	ID int `sdm:"id,ai,pri_member_pk"` // id INTEGER
-
-	// CONSTRAINT position UNIQUE (group_id,battle_position)
-	GroupID  int    `sdm:"group_id,uniq_position"`        // group_id INTEGER
-	Position string `sdm:"battle_position,uniq_position"` // battle_position TEXT
-
-	// sqlite doesn't support INDEX constraint, so sad
-	ColdDown int `sdm:"cd,idx_cd"` // cd INTEGER
-}
-
-// Group represents a group of people
-//
-// Inline comments are *DEMO*, sqlite3 driver will generate those for you
-// when you call CreateTables
-type Group struct {
-	// CONSTRAINT group_pk PRIMARY KEY (id) AUTOINCREMENT
-	ID int `sdm:"id,ai"` // id INTEGER
-
-	// CONSTRAINT group_name UNIQUE (name)
-	Name string `sdm:"name,uniq_group_name"` // name TEXT
-}
-
 func Example() {
+	// Member represents a member in a group
+	//
+	// Inline comments are *DEMO*, sqlite3 driver will generate those for you
+	// when you call CreateTables
+	type Member struct {
+		// CONSTRAINT member_pk PRIMARY KEY (id) AUTOINCREMENT
+		ID int `sdm:"id,ai,pri_member_pk"` // id INTEGER
+
+		// CONSTRAINT position UNIQUE (group_id,battle_position)
+		GroupID  int    `sdm:"group_id,uniq_position"`        // group_id INTEGER
+		Position string `sdm:"battle_position,uniq_position"` // battle_position TEXT
+
+		// sqlite doesn't support INDEX constraint, so sad
+		ColdDown int `sdm:"cd,idx_cd"` // cd INTEGER
+	}
+
+	// Group represents a group of people
+	//
+	// Inline comments are *DEMO*, sqlite3 driver will generate those for you
+	// when you call CreateTables
+	type Group struct {
+		// CONSTRAINT group_pk PRIMARY KEY (id) AUTOINCREMENT
+		ID int `sdm:"id,ai"` // id INTEGER
+
+		// CONSTRAINT group_name UNIQUE (name)
+		Name string `sdm:"name,uniq_group_name"` // name TEXT
+	}
+
 	// prepare db connection
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -50,13 +50,16 @@ func Example() {
 	m := New(db, "sqlite3")
 
 	// register types
-	m.Reg(Member{}, Group{})
+	m.Reg(Group{}, Member{})
 
 	// create table in db
 	m.CreateTables()
 
 	// insert record into table
 	if _, err := m.Insert(Group{Name: "Star Force"}); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := m.Insert(Member{GroupID: 1, Position: "DD", ColdDown: 8}); err != nil {
 		log.Fatal(err)
 	}
 
@@ -89,6 +92,18 @@ func Example() {
 }
 
 func ExampleManager_Build() {
+	// Group represents a group of people
+	//
+	// Inline comments are *DEMO*, sqlite3 driver will generate those for you
+	// when you call CreateTables
+	type Group struct {
+		// CONSTRAINT group_pk PRIMARY KEY (id) AUTOINCREMENT
+		ID int `sdm:"id,ai"` // id INTEGER
+
+		// CONSTRAINT group_name UNIQUE (name)
+		Name string `sdm:"name,uniq_group_name"` // name TEXT
+	}
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		log.Fatal(err)
@@ -97,9 +112,8 @@ func ExampleManager_Build() {
 	m := New(db, "sqlite3")
 
 	// register types
-	var mem Member
 	var grp Group
-	m.Reg(mem, grp)
+	m.Reg(grp)
 
 	// create table in db
 	m.CreateTables()
@@ -119,6 +133,18 @@ func ExampleManager_Build() {
 }
 
 func ExampleManager_Proxify() {
+	// Group represents a group of people
+	//
+	// Inline comments are *DEMO*, sqlite3 driver will generate those for you
+	// when you call CreateTables
+	type Group struct {
+		// CONSTRAINT group_pk PRIMARY KEY (id) AUTOINCREMENT
+		ID int `sdm:"id,ai"` // id INTEGER
+
+		// CONSTRAINT group_name UNIQUE (name)
+		Name string `sdm:"name,uniq_group_name"` // name TEXT
+	}
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		log.Fatal(err)
@@ -127,9 +153,8 @@ func ExampleManager_Proxify() {
 	m := New(db, "sqlite3")
 
 	// register types
-	var mem Member
 	var grp Group
-	m.Reg(mem, grp)
+	m.Reg(grp)
 
 	// create table in db
 	m.CreateTables()

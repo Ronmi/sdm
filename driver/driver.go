@@ -8,19 +8,25 @@ import (
 	"strings"
 )
 
-// Driver is used to generate vendor-specific SQL syntax
+// Driver is used to generate SQL syntax
+//
+// Don't feel shy of implementing only part of it, SDM is aim to help you, not
+// to add restrictions on you.
+//
+// If you're not going to create table with SDM, and using only types
+// databse/sql/driver supports (and their pointer type), Stub is there for you.
 type Driver interface {
-	// Functions to create table
-	//
-	// Pointer type should be created as nullable column if supported
+	// CreateTable creates table
 	CreateTable(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error)
+
+	// CreateTableNotExist creates table only if table does not exist
 	CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error)
 
 	// Quote quotes identifiers like table name or column name
 	Quote(name string) string
 
-	// Formats for general SQL statement
-	Col(table, col string, kind QuotingType) string // generate column name
+	// Col formats and quotes column name for various SQL statement
+	Col(table, col string, kind QuotingType) string
 
 	// Get unnamed placeholder for a type, used in INSERT, UPDATE and WHERE clause, mostly "?"
 	GetPlaceholder(typ reflect.Type) string
