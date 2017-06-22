@@ -133,8 +133,8 @@ func TestManager(t *testing.T) {
 		if target.ExportString != "load simple" {
 			t.Errorf("Data mispatch: expect estr to be 'load simple', got '%s'", target.ExportString)
 		}
-		if target.ExportTime != ti {
-			t.Errorf("Data mispatch: expect t to be %d, got %d", ti.Unix(), target.ExportTime.Unix())
+		if expect, actual := ti.Unix(), target.ExportTime.Unix(); expect != actual {
+			t.Errorf("Data mispatch: expect t to be %d, got %d", expect, actual)
 		}
 	})
 
