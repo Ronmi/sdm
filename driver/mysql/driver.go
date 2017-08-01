@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/Ronmi/sdm/driver"
@@ -26,7 +27,19 @@ var typeMap = map[reflect.Kind]string{
 	reflect.String:  "TEXT",
 }
 
-func getType(typ reflect.Type, charset, collate string) string {
+func quote(name string) string {
+	return "`" + name + "`"
+}
+
+type drv struct {
+	charset       string
+	collate       string
+	stringKeySize string
+	blobKeySize   string
+	driver.Stub
+}
+
+func (d *drv) getType(typ reflect.Type, name string, indexes []driver.Index) string {
 	t := driver.ElementType(typ)
 
 	// check []byte first
@@ -44,7 +57,17 @@ func getType(typ reflect.Type, charset, collate string) string {
 
 	if def, ok := typeMap[t.Kind()]; ok {
 		if t.Kind() == reflect.String {
-			def += " CHARACTER SET " + charset + " COLLATE " + collate
+			has := false
+			for _, i := range indexes {
+				if i.HasCol(name) {
+					has = true
+					break
+				}
+			}
+			if has {
+				def = "VARCHAR(" + d.stringKeySize + ")"
+			}
+			def += " CHARACTER SET " + d.charset + " COLLATE " + d.collate
 		}
 		return def + postfix
 	}
@@ -56,17 +79,13 @@ func getType(typ reflect.Type, charset, collate string) string {
 	panic("sdm: driver: mysql: unsupported type " + t.String())
 }
 
-func quote(name string) string {
-	return "`" + name + "`"
-}
-
-func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index, charset, collate string) string {
+func (d *drv) createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driver.Index) string {
 	ret := make([]string, 0, len(cols)+len(indexes))
 
 	hasAI := false
 
 	for _, c := range cols {
-		def := quote(c.Name) + ` ` + getType(typ.Field(c.ID).Type, charset, collate)
+		def := quote(c.Name) + ` ` + d.getType(typ.Field(c.ID).Type, c.Name, indexes)
 		if c.AI {
 			hasAI = true
 			// in sqlite, auto increment must pair with primary key
@@ -87,6 +106,23 @@ func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driv
 		quoted := make([]string, len(i.Cols))
 		for k, v := range i.Cols {
 			quoted[k] = quote(v)
+			for _, c := range cols {
+				if c.Name != v {
+					continue
+				}
+
+				ki := typ.Field(c.ID).Type.Kind()
+				kie := ki
+				if ki == reflect.Array || ki == reflect.Slice || ki == reflect.Ptr {
+					kie = typ.Field(c.ID).Type.Elem().Kind()
+				}
+				if ki == reflect.Array || ki == reflect.Slice {
+					if kie == reflect.Uint8 {
+						quoted[k] += "(" + d.blobKeySize + ")"
+					}
+				}
+				break
+			}
 		}
 
 		switch i.Type {
@@ -116,20 +152,16 @@ func createTableColumnSQL(typ reflect.Type, cols []driver.Column, indexes []driv
 		ret = append(ret, def)
 	}
 
-	return strings.Join(ret, ",") + " DEFAULT CHARACTER SET " + charset + " DEFAULT COLLATE " + collate
-}
-
-type drv struct {
-	charset string
-	collate string
-	driver.Stub
+	return strings.Join(ret, ",")
 }
 
 func (d drv) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
-		"CREATE TABLE '%s' (%s)",
-		name,
-		createTableColumnSQL(typ, cols, indexes, d.charset, d.collate),
+		"CREATE TABLE %s (%s) DEFAULT CHARACTER SET %s,DEFAULT COLLATE %s",
+		quote(name),
+		d.createTableColumnSQL(typ, cols, indexes),
+		d.charset,
+		d.collate,
 	)
 
 	return db.Exec(qstr)
@@ -137,9 +169,11 @@ func (d drv) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []drive
 
 func (d drv) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []driver.Column, indexes []driver.Index) (sql.Result, error) {
 	qstr := fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS '%s' (%s)",
-		name,
-		createTableColumnSQL(typ, cols, indexes, d.charset, d.collate),
+		"CREATE TABLE IF NOT EXISTS %s (%s) DEFAULT CHARACTER SET %s,DEFAULT COLLATE %s",
+		quote(name),
+		d.createTableColumnSQL(typ, cols, indexes),
+		d.charset,
+		d.collate,
 	)
 
 	return db.Exec(qstr)
@@ -153,6 +187,8 @@ func init() {
 	driver.RegisterDriver("mysql", func(p map[string]string) driver.Driver {
 		charset := "utf8"
 		collate := "utf8_general_ci"
+		sSize := 256
+		bSize := 2048
 
 		if c, ok := p["charset"]; ok {
 			charset = c
@@ -160,11 +196,23 @@ func init() {
 		if c, ok := p["collate"]; ok {
 			collate = c
 		}
+		if c, ok := p["stringSize"]; ok {
+			if sz, err := strconv.Atoi(c); err == nil && sz <= sSize && sz > 0 {
+				sSize = sz
+			}
+		}
+		if c, ok := p["blobSize"]; ok {
+			if sz, err := strconv.Atoi(c); err == nil {
+				bSize = sz
+			}
+		}
 
 		return drv{
-			charset: charset,
-			collate: collate,
-			Stub:    driver.Stub{QuoteFunc: quote},
+			charset:       charset,
+			collate:       collate,
+			stringKeySize: strconv.Itoa(sSize),
+			blobKeySize:   strconv.Itoa(bSize),
+			Stub:          driver.Stub{QuoteFunc: quote},
 		}
 	})
 }

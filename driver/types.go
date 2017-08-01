@@ -13,6 +13,17 @@ type Index struct {
 	Cols []string
 }
 
+// HasCol determins is this index contains the column
+func (i *Index) HasCol(name string) bool {
+	for _, c := range i.Cols {
+		if name == c {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Column represents defination of a column, for internal use only
 type Column struct {
 	ID   int    // field id
