@@ -50,7 +50,7 @@ func TestColumnSQL(t *testing.T) {
 				{Type: driver.IndexTypePrimary, Name: "test_pk", Cols: []string{"id"}},
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: "`id` BIGINT NOT NULL CONSTRAINT `test_pk` PRIMARY KEY AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,CONSTRAINT `birth` UNIQUE KEY (`y`,`m`,`d`)",
+			qstr: "`id` BIGINT NOT NULL AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,CONSTRAINT `test_pk` PRIMARY KEY (`id`),CONSTRAINT `birth` UNIQUE KEY (`y`,`m`,`d`)",
 			msg:  "well-defined struct with auto increment, primary and unique key",
 		},
 		{
@@ -93,7 +93,7 @@ func TestColumnSQL(t *testing.T) {
 			idx: []driver.Index{
 				{Type: driver.IndexTypeUnique, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: "`id` BIGINT NOT NULL CONSTRAINT `_pk` PRIMARY KEY AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,CONSTRAINT `birth` UNIQUE KEY (`y`,`m`,`d`)",
+			qstr: "`id` BIGINT NOT NULL AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,CONSTRAINT `_pk` PRIMARY KEY (`id`),CONSTRAINT `birth` UNIQUE KEY (`y`,`m`,`d`)",
 			msg:  "well-defined struct with auto increment and unique key",
 		},
 		{
@@ -135,7 +135,7 @@ func TestColumnSQL(t *testing.T) {
 			idx: []driver.Index{
 				{Type: driver.IndexTypeIndex, Name: "birth", Cols: []string{"y", "m", "d"}},
 			},
-			qstr: "`id` BIGINT NOT NULL CONSTRAINT `_pk` PRIMARY KEY AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,INDEX `birth` (`y`,`m`,`d`)",
+			qstr: "`id` BIGINT NOT NULL AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` TEXT CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,CONSTRAINT `_pk` PRIMARY KEY (`id`),INDEX `birth` (`y`,`m`,`d`)",
 			msg:  "well-defined struct with auto increment and index key",
 		},
 		{
@@ -156,7 +156,7 @@ func TestColumnSQL(t *testing.T) {
 			idx: []driver.Index{
 				{Type: driver.IndexTypeIndex, Name: "myname", Cols: []string{"name"}},
 			},
-			qstr: "`id` BIGINT NOT NULL CONSTRAINT `_pk` PRIMARY KEY AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` VARCHAR(256) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,INDEX `myname` (`name`)",
+			qstr: "`id` BIGINT NOT NULL AUTO_INCREMENT,`y` BIGINT NOT NULL,`m` BIGINT NOT NULL,`d` BIGINT NOT NULL,`name` VARCHAR(256) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,CONSTRAINT `_pk` PRIMARY KEY (`id`),INDEX `myname` (`name`)",
 			msg:  "well-defined struct with auto increment and index key on string column",
 		},
 	}
