@@ -7,34 +7,43 @@ import (
 
 type wrapper reflect.Value
 
-func scanPointer(vs, v reflect.Value, src interface{}) error {
+func scanPointer(vs, v reflect.Value) error {
 	if vs.Type().Kind() == reflect.Ptr && vs.IsNil() {
 		v.Set(reflect.Zero(v.Type()))
 		return nil
 	}
 
-	return scanValue(vs, v.Elem(), src)
+	return scanValue(vs, v.Elem())
 }
 
-func scanValue(vs, v reflect.Value, src interface{}) error {
+func scanValue(vs, v reflect.Value) error {
+	if vs.Type().Kind() == reflect.Ptr && vs.IsNil() {
+		v.Set(reflect.Zero(v.Type()))
+		return nil
+	}
+
 	v.Set(vs)
 	return nil
 }
 
 func (w wrapper) Scan(src interface{}) error {
-	vs := reflect.ValueOf(src)
 	v := reflect.Value(w)
+	if src == nil {
+		v.Set(reflect.Zero(v.Type()))
+		return nil
+	}
+	vs := reflect.ValueOf(src)
 
 	// allocate space if needed
-	if !v.IsValid() {
-		v.Set(reflect.New(v.Type()))
+	t := v.Type()
+	if t.Kind() == reflect.Ptr {
+		if !v.Elem().IsValid() {
+			v.Set(reflect.New(t.Elem()))
+		}
+		return scanPointer(vs, v)
 	}
 
-	if v.Type().Kind() == reflect.Ptr {
-		return scanPointer(vs, v, src)
-	}
-
-	return scanValue(vs, v, src)
+	return scanValue(vs, v)
 }
 
 func (w wrapper) Value() (ret sqlDriver.Value, err error) {
