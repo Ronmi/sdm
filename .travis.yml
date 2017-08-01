@@ -4,3 +4,12 @@ go:
   - 1.7
   - 1.8
   - master
+
+services:
+  - mysql
+
+before_install:
+  - mysql -e 'CREATE DATABASE test;'
+
+env:
+  - "MYSQL_DSN=root@(127.0.0.1:3306)/test"
