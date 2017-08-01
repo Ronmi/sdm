@@ -607,7 +607,9 @@ func (m *Manager) tryFillPK(data interface{}, res sql.Result) {
 func (m *Manager) Insert(data interface{}) (sql.Result, error) {
 	qstr, vals := m.makeInsert(data)
 	res, err := m.db.Exec(qstr, vals...)
-	m.tryFillPK(data, res)
+	if err == nil {
+		m.tryFillPK(data, res)
+	}
 	return res, err
 }
 
