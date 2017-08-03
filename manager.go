@@ -3,7 +3,6 @@ package sdm
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -108,7 +107,7 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 	defer m.lock.Unlock()
 
 	if t.Kind() != reflect.Struct {
-		panic(fmt.Errorf("sdm: %s is not a struct type", t.String()))
+		panic(errors.New("sdm: " + t.String() + " is not a struct type"))
 	}
 
 	mps := make([]driver.Column, 0, t.NumField())
@@ -548,12 +547,10 @@ func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{})
 	vals = m.ValIns(data)
 	cols := m.ColIns(data)
 	hd := m.HolderIns(data)
-	qstr = fmt.Sprintf(
-		`INSERT INTO %s (%s) VALUES (%s)`,
-		m.drv.Quote(table),
-		strings.Join(cols, ","),
-		strings.Join(hd, ","),
-	)
+	qstr = `INSERT INTO ` +
+		m.drv.Quote(table) +
+		`(` + strings.Join(cols, ",") + `) VALUES ` +
+		`(` + strings.Join(hd, ",") + `)`
 	return
 }
 
@@ -624,12 +621,9 @@ func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interfa
 		com[k] = cols[k] + "=" + v
 	}
 
-	qstr = fmt.Sprintf(
-		`UPDATE %s SET %s WHERE %s`,
-		m.drv.Quote(table),
-		strings.Join(com, ","),
-		where,
-	)
+	qstr = `UPDATE ` + m.drv.Quote(table) +
+		` SET ` + strings.Join(com, ",") +
+		` WHERE ` + where
 	if len(whereargs) > 0 {
 		vals = append(vals, whereargs...)
 	}
@@ -654,11 +648,8 @@ func (m *Manager) makeDelete(data interface{}) (qstr string, vals []interface{})
 		com[k] = cols[k] + "=" + v
 	}
 
-	qstr = fmt.Sprintf(
-		`DELETE FROM %s WHERE %s`,
-		m.drv.Quote(table),
-		strings.Join(com, " AND "),
-	)
+	qstr = `DELETE FROM ` + m.drv.Quote(table) +
+		` WHERE ` + strings.Join(com, " AND ")
 
 	return
 }
