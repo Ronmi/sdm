@@ -13,3 +13,6 @@ before_install:
 
 env:
   - "MYSQL_DSN=root@(127.0.0.1:3306)/test"
+
+script:
+  - go test -run . -benchmem -bench . ./...
