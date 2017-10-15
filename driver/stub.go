@@ -98,3 +98,17 @@ func RegisterStubAs(registerAs string, quoteFunc func(columnName string) (quoted
 		}
 	})
 }
+
+// AnsiStub registers a single-quote (ANSI SQL compitable) based SDM stub driver as "ansistub"
+func AnsiStub() {
+	RegisterStubAs("ansistub", func(n string) string {
+		return `'` + n + `'`
+	})
+}
+
+// MySQLStub registers a back-quote (MySQL compitable) based SDM stub driver as "mysqlstub"
+func MySQLStub() {
+	RegisterStubAs("mysqlstub", func(n string) string {
+		return "`" + n + "`"
+	})
+}
