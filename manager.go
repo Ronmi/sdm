@@ -613,9 +613,9 @@ func (m *Manager) Insert(data interface{}) (sql.Result, error) {
 func (m *Manager) makeUpdate(data interface{}, where string, whereargs []interface{}) (qstr string, vals []interface{}) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
 	table := m.GetTable(t)
-	vals = m.Val(data)
+	vals = m.ValIns(data)
 	cols := m.ColIns(data)
-	hd := m.Holder(data)
+	hd := m.HolderIns(data)
 	com := make([]string, len(hd))
 	for k, v := range hd {
 		com[k] = cols[k] + "=" + v
