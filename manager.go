@@ -471,6 +471,19 @@ func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows
 	return m.Proxify(dbrows, typ)
 }
 
+// QueryRow makes SQL query, fill first row into data and discard the rest
+// It panics if type is not registered and auto register is not enabled.
+//
+// QueryRow is a wrapper for Query, see Query() for detail.
+func (m *Manager) QueryRow(data interface{}, qstr string, args ...interface{}) error {
+	rows := m.Query(data, qstr, args)
+	defer rows.Close()
+
+	rows.Next()
+	rows.Scan(data)
+	return rows.Err()
+}
+
 // LoadSimple loads simple table
 //
 // Simple table is a table with single-column primary key
