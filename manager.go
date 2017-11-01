@@ -32,6 +32,7 @@ type tableInfo struct {
 	Indexes []driver.Index
 	Defs    map[string]driver.Column
 	Fields  []driver.Column
+	PKIndex int // < 0 if not exists
 }
 
 // Manager is just manager. any question?
@@ -178,6 +179,17 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 			Name: tableName + "_" + "pk",
 			Cols: []string{lastAIField.Name},
 		})
+		havePK = true
+	}
+
+	pk := -1
+	if havePK {
+		for _, i := range indexes {
+			if i.Type == driver.IndexTypePrimary {
+				pk = i
+				break
+			}
+		}
 	}
 
 	m.info[t] = &tableInfo{
@@ -185,13 +197,15 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 		Indexes: indexes,
 		Defs:    idx,
 		Fields:  mps,
+		PKIndex: pk,
 	}
 }
 
 func (m *Manager) getInfo(t reflect.Type) (ret *tableInfo) {
 	m.lock.RLock()
-	defer m.lock.RUnlock()
 	ret, ok := m.info[t]
+	m.lock.RUnlock()
+
 	if !ok {
 		if !m.AutoReg {
 			panic("info of type " + t.String() + " not found")
@@ -206,15 +220,11 @@ func (m *Manager) getInfo(t reflect.Type) (ret *tableInfo) {
 func (m *Manager) getPK(t reflect.Type) (ret driver.Index, ok bool) {
 	info := m.getInfo(t)
 
-	for _, i := range info.Indexes {
-		if i.Type != driver.IndexTypePrimary {
-			continue
-		}
-
-		return i, true
+	if info.PKIndex < 0 {
+		return
 	}
 
-	return
+	return info.Indexes[info.PKIndex], true
 }
 
 // GetTable returns table name of specified type.
