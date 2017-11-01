@@ -519,7 +519,7 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 	return m.db.Exec(qstr, args...)
 }
 
-// Build constructs sql query, and executes it with Exec
+// BuildSQL constructs sql query
 // It panics if type is not registered and auto register is not enabled.
 //
 // You can use "%table%" as placeholder for table name.
@@ -532,10 +532,14 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 // Rules above is not validated, YOU MUST TAKE CARE OF IT YOURSELF.
 //
 // Custom parameters are not supported, use Exec instead.
-func (m *Manager) Build(data interface{}, tmpl string, qType driver.QuotingType) (sql.Result, error) {
+//
+// Order of columns is not guaranteed, use Val() to generate it. For example:
+//
+//     qstr := m.BuildSQL(myStruct, `REPLACE INTO %table% (%cols%) VALUES (%vals%)`, driver.QInsert)
+//     m.Exec(qstr, m.Val(myStruct))
+func (m *Manager) BuildSQL(data interface{}, tmpl string, qType driver.QuotingType) (qstr string) {
 	cols := m.Col(data, qType)
-	vals := m.Val(data)
-	sz := len(vals)
+	sz := len(cols)
 
 	hd := m.Holder(data)
 	com := make([]string, sz)
@@ -551,7 +555,20 @@ func (m *Manager) Build(data interface{}, tmpl string, qType driver.QuotingType)
 	tmpl = strings.Replace(tmpl, "%cols%", strings.Join(cols, ","), 1)
 	tmpl = strings.Replace(tmpl, "%vals%", strings.Join(hd, ","), 1)
 	tmpl = strings.Replace(tmpl, "%combined%", strings.Join(com, ","), 1)
-	return m.Exec(tmpl, vals...)
+	return tmpl
+}
+
+// Build is shortcut of building custom query and executes it
+//
+// It is identical to following codes
+//
+//     qstr := m.BuildSQL(myStruct, `REPLACE INTO %table% (%cols%) VALUES (%vals%)`, driver.QInsert)
+//     return m.Exec(qstr, m.Val(myStruct)...)
+func (m *Manager) Build(data interface{}, tmpl string, qType driver.QuotingType) (sql.Result, error) {
+	return m.Exec(
+		m.BuildSQL(data, tmpl, qType),
+		m.Val(data)...,
+	)
 }
 
 func (m *Manager) makeInsert(data interface{}) (qstr string, vals []interface{}) {
