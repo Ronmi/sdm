@@ -12,7 +12,7 @@ import (
 //
 // QueryRow is not supported since it need some modifications to sdm core.
 type Stmt struct {
-	*sql.Stmt
+	stmt    *sql.Stmt
 	def     map[string]driver.Column
 	t       reflect.Type
 	drv     driver.Driver
@@ -20,8 +20,14 @@ type Stmt struct {
 	lock    sync.Mutex
 }
 
+// Exec is identical to sql.Stmt.Exec
+func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
+	return s.stmt.Exec(args...)
+}
+
+// Query is just sql.Stmt.Query, excepts it wrap the sql.Rows in sdm.Rows
 func (s *Stmt) Query(args ...interface{}) *Rows {
-	r, err := s.Stmt.Query(args...)
+	r, err := s.stmt.Query(args...)
 
 	s.lock.Lock()
 	if err == nil && s.columns == nil {
@@ -39,6 +45,9 @@ func (s *Stmt) Query(args ...interface{}) *Rows {
 	}
 }
 
+// QueryRow is like sql.Stmt.QueryRow, but implementing detail differs.
+//
+// See sdm.Row for more info.
 func (s *Stmt) QueryRow(args ...interface{}) *Row {
 	return &Row{r: s.Query(args...)}
 }

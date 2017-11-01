@@ -380,7 +380,7 @@ func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
 
 	stmt, e := m.Connection().Prepare(qstr)
 	return &Stmt{
-		Stmt: stmt,
+		stmt: stmt,
 		def:  f,
 		t:    t,
 		drv:  m.drv,
@@ -397,7 +397,7 @@ func (m *Manager) PrepareSQL(data interface{}, tmpl string, qType driver.Quoting
 
 	stmt, e := m.Connection().Prepare(qstr)
 	return &Stmt{
-		Stmt:    stmt,
+		stmt:    stmt,
 		def:     info.Defs,
 		t:       t,
 		drv:     m.drv,

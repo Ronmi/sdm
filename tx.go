@@ -33,6 +33,26 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 	return tx.m.Proxify(dbrows, typ)
 }
 
+// QueryRow makes SQL query and proxies it, but allowing you to read only first row
+func (tx *Tx) QueryRow(typ interface{}, qstr string, args ...interface{}) *Row {
+	return &Row{r: tx.Query(typ, qstr, args...)}
+}
+
+// Prepare wraps sql.Tx.Prepare
+// It panics if type is not registered and auto register is not enabled.
+func (tx *Tx) Prepare(data interface{}, qstr string) (*Stmt, error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	f := tx.m.getInfo(t).Defs
+
+	stmt, e := tx.tx.Prepare(qstr)
+	return &Stmt{
+		stmt: stmt,
+		def:  f,
+		t:    t,
+		drv:  tx.m.drv,
+	}, e
+}
+
 // Insert inserts data into table.
 // It panics if type is not registered and auto register is not enabled.
 //
@@ -66,6 +86,17 @@ func (tx *Tx) Rollback() error {
 // Commit is just same as sql.Tx.Commit
 func (tx *Tx) Commit() error {
 	return tx.tx.Commit()
+}
+
+// Stmt is just same as sql.Tx.Stmt, buf for sdm
+func (tx *Tx) Stmt(s *Stmt) *Stmt {
+	return &Stmt{
+		Stmt:    tx.tx.Stmt(s.Stmt),
+		def:     s.def,
+		t:       s.t,
+		drv:     s.drv,
+		columns: s.columns,
+	}
 }
 
 // Tx returns internal *sql.Tx
