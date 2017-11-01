@@ -12,9 +12,10 @@ import (
 // QueryRow is not supported since it need some modifications to sdm core.
 type Stmt struct {
 	*sql.Stmt
-	def map[string]driver.Column
-	t   reflect.Type
-	drv driver.Driver
+	def     map[string]driver.Column
+	t       reflect.Type
+	drv     driver.Driver
+	columns []string
 }
 
 func (s *Stmt) Query(args ...interface{}) *Rows {

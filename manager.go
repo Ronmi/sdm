@@ -27,6 +27,13 @@ func findIndexByName(i *[]driver.Index, name, typ string) int {
 	return idx
 }
 
+type tableInfo struct {
+	Table   string
+	Indexes []driver.Index
+	Defs    map[string]driver.Column
+	Fields  []driver.Column
+}
+
 // Manager is just manager. any question?
 //
 // Manager IS NOT ZERO VALUE SAFE. Always create with New()
@@ -38,13 +45,10 @@ type Manager struct {
 	// Use it with care, since Reg() panics if type has no SDM tag.
 	AutoReg bool
 
-	indexes map[reflect.Type][]driver.Index
-	columns map[reflect.Type]map[string]driver.Column
-	fields  map[reflect.Type][]driver.Column
-	table   map[reflect.Type]string
-	lock    sync.RWMutex
-	db      *sql.DB
-	drv     driver.Driver
+	info map[reflect.Type]*tableInfo
+	lock sync.RWMutex
+	db   *sql.DB
+	drv  driver.Driver
 }
 
 // New create sdm manager
@@ -59,10 +63,7 @@ func New(db *sql.DB, driverStr string) *Manager {
 
 	return &Manager{
 		false,
-		map[reflect.Type][]driver.Index{},
-		map[reflect.Type]map[string]driver.Column{},
-		map[reflect.Type][]driver.Column{},
-		map[reflect.Type]string{},
+		map[reflect.Type]*tableInfo{},
 		sync.RWMutex{},
 		db,
 		sdmDriver,
@@ -77,7 +78,7 @@ func (m *Manager) Driver() driver.Driver {
 func (m *Manager) has(t reflect.Type) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	if _, ok := m.fields[t]; ok {
+	if _, ok := m.info[t]; ok {
 		return true
 	}
 	return false
@@ -179,86 +180,33 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 		})
 	}
 
-	m.indexes[t] = indexes
-	m.columns[t] = idx
-	m.fields[t] = mps
-	m.table[t] = tableName
-}
-
-func (m *Manager) getIndex(t reflect.Type) (ret []driver.Index) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	ret, ok := m.indexes[t]
-	if !ok {
-		if !m.AutoReg {
-			panic("info of type " + t.String() + " not found")
-		}
-
-		m.register(t, strings.ToLower(t.Name()))
-		return m.getIndex(t)
+	m.info[t] = &tableInfo{
+		Table:   tableName,
+		Indexes: indexes,
+		Defs:    idx,
+		Fields:  mps,
 	}
-	return
 }
 
-func (m *Manager) getColumnMap(t reflect.Type) (ret map[string]driver.Column) {
+func (m *Manager) getInfo(t reflect.Type) (ret *tableInfo) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	ret, ok := m.columns[t]
+	ret, ok := m.info[t]
 	if !ok {
 		if !m.AutoReg {
 			panic("info of type " + t.String() + " not found")
 		}
 
 		m.register(t, strings.ToLower(t.Name()))
-		return m.getColumnMap(t)
-	}
-	return
-}
-
-func (m *Manager) getDef(t reflect.Type) (ret []driver.Column) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	ret, ok := m.fields[t]
-	if !ok {
-		if !m.AutoReg {
-			panic("info of type " + t.String() + " not found")
-		}
-
-		m.register(t, strings.ToLower(t.Name()))
-		return m.getDef(t)
-	}
-	return
-}
-
-func (m *Manager) getMap(t reflect.Type) (ret map[string]driver.Column) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	ret, ok := m.columns[t]
-	if !ok {
-		if !m.AutoReg {
-			panic("info of type " + t.String() + " not found")
-		}
-
-		m.register(t, strings.ToLower(t.Name()))
-		return m.getMap(t)
+		return m.getInfo(t)
 	}
 	return
 }
 
 func (m *Manager) getPK(t reflect.Type) (ret driver.Index, ok bool) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	idx, ok := m.indexes[t]
-	if !ok {
-		if !m.AutoReg {
-			panic("info of type " + t.String() + " not found")
-		}
+	info := m.getInfo(t)
 
-		m.register(t, strings.ToLower(t.Name()))
-		return m.getPK(t)
-	}
-
-	for _, i := range idx {
+	for _, i := range info.Indexes {
 		if i.Type != driver.IndexTypePrimary {
 			continue
 		}
@@ -272,30 +220,20 @@ func (m *Manager) getPK(t reflect.Type) (ret driver.Index, ok bool) {
 // GetTable returns table name of specified type.
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) GetTable(t reflect.Type) (ret string) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	ret, ok := m.table[t]
-	if !ok {
-		if !m.AutoReg {
-			panic("info of type " + t.String() + " not found")
-		}
-
-		m.register(t, strings.ToLower(t.Name()))
-		return m.GetTable(t)
-	}
-	return
+	info := m.getInfo(t)
+	return info.Table
 }
 
 // Col returns a list of columns in sql format, including AUTO INCREMENT columns.
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Col(data interface{}, qType driver.QuotingType) (ret []string) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table := m.GetTable(t)
-	fdef := m.getDef(t)
+	info := m.getInfo(t)
+	fdef := info.Fields
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
-		c := m.drv.Col(table, f.Name, qType)
+		c := m.drv.Col(info.Table, f.Name, qType)
 		ret = append(ret, c)
 	}
 
@@ -307,12 +245,12 @@ func (m *Manager) Col(data interface{}, qType driver.QuotingType) (ret []string)
 func (m *Manager) ColSel(data interface{}) (ret []string) {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	t := v.Type()
-	table := m.GetTable(t)
-	fdef := m.getDef(t)
+	info := m.getInfo(t)
+	fdef := info.Fields
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
-		c := m.drv.Col(table, f.Name, driver.QSelect)
+		c := m.drv.Col(info.Table, f.Name, driver.QSelect)
 		ret = append(ret, c)
 	}
 
@@ -323,15 +261,15 @@ func (m *Manager) ColSel(data interface{}) (ret []string) {
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) ColIns(data interface{}) (ret []string) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	table := m.GetTable(t)
-	fdef := m.getDef(t)
+	info := m.getInfo(t)
+	fdef := info.Fields
 	ret = make([]string, 0, len(fdef))
 
 	for _, f := range fdef {
 		if f.AI {
 			continue
 		}
-		c := m.drv.Col(table, f.Name, driver.QInsert)
+		c := m.drv.Col(info.Table, f.Name, driver.QInsert)
 		ret = append(ret, c)
 	}
 
@@ -344,7 +282,7 @@ func (m *Manager) Val(data interface{}) []interface{} {
 	var ret []interface{}
 	v := reflect.Indirect(reflect.ValueOf(data))
 	t := v.Type()
-	fdef := m.getDef(t)
+	fdef := m.getInfo(t).Fields
 
 	ret = make([]interface{}, len(fdef))
 	for k, f := range fdef {
@@ -364,7 +302,7 @@ func (m *Manager) ValIns(data interface{}) []interface{} {
 	var ret []interface{}
 	v := reflect.Indirect(reflect.ValueOf(data))
 	t := v.Type()
-	fdef := m.getDef(t)
+	fdef := m.getInfo(t).Fields
 
 	ret = make([]interface{}, 0, len(fdef))
 	for _, f := range fdef {
@@ -389,7 +327,7 @@ func (m *Manager) ValIns(data interface{}) []interface{} {
 func (m *Manager) Holder(data interface{}) []string {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	t := v.Type()
-	fdef := m.getDef(t)
+	fdef := m.getInfo(t).Fields
 
 	ret := make([]string, len(fdef))
 	for k, f := range fdef {
@@ -404,7 +342,7 @@ func (m *Manager) Holder(data interface{}) []string {
 func (m *Manager) HolderIns(data interface{}) []string {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	t := v.Type()
-	fdef := m.getDef(t)
+	fdef := m.getInfo(t).Fields
 
 	ret := make([]string, 0, len(fdef))
 	for _, f := range fdef {
@@ -428,7 +366,7 @@ func (m *Manager) Connection() *sql.DB {
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	f := m.getMap(t)
+	f := m.getInfo(t).Defs
 
 	stmt, e := m.Connection().Prepare(qstr)
 	return &Stmt{
@@ -443,7 +381,7 @@ func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	f := m.getMap(t)
+	f := m.getInfo(t).Defs
 	c, e := r.Columns()
 
 	return &Rows{
@@ -457,7 +395,7 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 }
 
 func (m *Manager) createErrorRow(typ reflect.Type, err error) *Rows {
-	f := m.getMap(typ)
+	f := m.getInfo(typ).Defs
 
 	return &Rows{nil, f, []string{}, err, typ, m.drv}
 }
@@ -518,7 +456,7 @@ func (m *Manager) LoadSimple(data, pkVal interface{}) error {
 		return errors.New(t.Name() + " has more than 1 column")
 	}
 
-	cols := m.getColumnMap(t)
+	cols := m.getInfo(t).Defs
 	f := v.Field(cols[pk.Cols[0]].ID)
 	qstr += m.drv.Col(m.GetTable(t), pk.Cols[0], driver.QWhere) + `=` + m.drv.GetPlaceholder(f.Type())
 	rows := m.Query(data, qstr, pkVal)
@@ -606,8 +544,9 @@ func (m *Manager) tryFillPK(data interface{}, res sql.Result) {
 	}
 
 	t := v.Type()
-	indexes := m.getIndex(t)
-	cols := m.getColumnMap(t)
+	info := m.getInfo(t)
+	indexes := info.Indexes
+	cols := info.Defs
 	for _, idx := range indexes {
 		if idx.Type != driver.IndexTypePrimary {
 			continue

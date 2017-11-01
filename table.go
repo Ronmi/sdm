@@ -5,13 +5,13 @@ func (m *Manager) CreateTables() (err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	for t, n := range m.table {
+	for t, n := range m.info {
 		_, err = m.drv.CreateTable(
 			m.Connection(),
-			n,
+			n.Table,
 			t,
-			m.fields[t],
-			m.indexes[t],
+			n.Fields,
+			n.Indexes,
 		)
 		if err != nil {
 			return
@@ -26,13 +26,13 @@ func (m *Manager) CreateTablesNotExist() (err error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	for t, n := range m.table {
+	for t, n := range m.info {
 		_, err = m.drv.CreateTableNotExist(
 			m.Connection(),
-			n,
+			n.Table,
 			t,
-			m.fields[t],
-			m.indexes[t],
+			n.Fields,
+			n.Indexes,
 		)
 		if err != nil {
 			return

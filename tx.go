@@ -18,7 +18,7 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 	dbrows, err := tx.tx.Query(qstr, args...)
 	if err != nil {
 		t := reflect.Indirect(reflect.ValueOf(typ)).Type()
-		f := tx.m.getMap(t)
+		f := tx.m.getInfo(t).Defs
 
 		return &Rows{
 			nil,

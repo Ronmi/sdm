@@ -301,10 +301,11 @@ func TestManager(t *testing.T) {
 				db, m := c.setup(t)
 				defer c.teardown(t, db)
 				typ := reflect.TypeOf(testok{})
-				idx, ok := m.indexes[typ]
+				info, ok := m.info[typ]
 				if !ok {
 					t.Fatalf("No index data found!")
 				}
+				idx := info.Indexes
 				if l := len(idx); l != 3 {
 					t.Errorf("Expected to have 3 indexes, got %d", l)
 				}
