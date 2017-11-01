@@ -424,6 +424,21 @@ func (m *Manager) Connection() *sql.DB {
 	return m.db
 }
 
+// Prepare warps sql.DB.Prepare
+// It panics if type is not registered and auto register is not enabled.
+func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	f := m.getMap(t)
+
+	stmt, e := m.Connection().Prepare(qstr)
+	return &Stmt{
+		Stmt: stmt,
+		def:  f,
+		t:    t,
+		drv:  m.drv,
+	}, e
+}
+
 // Proxify proxies needed methods of sql.Rows
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
