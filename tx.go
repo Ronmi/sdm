@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+
+	"github.com/Ronmi/sdm/driver"
 )
 
 // Tx wraps Manager in transaction
@@ -41,16 +43,13 @@ func (tx *Tx) QueryRow(typ interface{}, qstr string, args ...interface{}) *Row {
 // Prepare wraps sql.Tx.Prepare
 // It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Prepare(data interface{}, qstr string) (*Stmt, error) {
-	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	f := tx.m.getInfo(t).Defs
+	return tx.m.prepare(tx.tx.Prepare, data, qstr, nil)
+}
 
-	stmt, e := tx.tx.Prepare(qstr)
-	return &Stmt{
-		stmt: stmt,
-		def:  f,
-		t:    t,
-		drv:  tx.m.drv,
-	}, e
+// Prepare wraps sdm.Manager.PrepareSQL
+func (tx *Tx) PrepareSQL(data interface{}, tmpl string, qType driver.QuotingType) (*Stmt, error) {
+	qstr := tx.m.BuildSQL(data, tmpl, qType)
+	return tx.m.prepare(tx.tx.Prepare, data, qstr, tx.m.Col(data, qType))
 }
 
 // Insert inserts data into table.

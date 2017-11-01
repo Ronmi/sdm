@@ -372,37 +372,32 @@ func (m *Manager) Connection() *sql.DB {
 	return m.db
 }
 
-// Prepare wraps sql.DB.Prepare
-// It panics if type is not registered and auto register is not enabled.
-func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
+func (m *Manager) prepare(p func(string) (*sql.Stmt, error), data interface{}, qstr string, cols []string) (*Stmt, error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
 	f := m.getInfo(t).Defs
 
-	stmt, e := m.Connection().Prepare(qstr)
+	stmt, e := p(qstr)
 	return &Stmt{
-		stmt: stmt,
-		def:  f,
-		t:    t,
-		drv:  m.drv,
+		stmt:    stmt,
+		def:     f,
+		t:       t,
+		drv:     m.drv,
+		columns: cols,
 	}, e
+}
+
+// Prepare wraps sql.DB.Prepare
+// It panics if type is not registered and auto register is not enabled.
+func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
+	return m.prepare(m.Connection().Prepare, data, qstr, nil)
 }
 
 // PrepareSQL builds sql query with BuildSQL(), then prepare it
 //
-// It is faster than Prepare(data, BuildSQL()).
+// It is faster than Prepare(data, BuildSQL()), since it does not depend on sql.Rows.Columns()
 func (m *Manager) PrepareSQL(data interface{}, tmpl string, qType driver.QuotingType) (*Stmt, error) {
-	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	info := m.getInfo(t)
 	qstr := m.BuildSQL(data, tmpl, qType)
-
-	stmt, e := m.Connection().Prepare(qstr)
-	return &Stmt{
-		stmt:    stmt,
-		def:     info.Defs,
-		t:       t,
-		drv:     m.drv,
-		columns: m.Col(data, qType),
-	}, e
+	return m.prepare(m.Connection().Prepare, data, qstr, m.Col(data, qType))
 }
 
 // Proxify proxies needed methods of sql.Rows
