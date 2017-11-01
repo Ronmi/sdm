@@ -184,9 +184,9 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 
 	pk := -1
 	if havePK {
-		for _, i := range indexes {
+		for x, i := range indexes {
 			if i.Type == driver.IndexTypePrimary {
-				pk = i
+				pk = x
 				break
 			}
 		}
