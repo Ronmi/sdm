@@ -34,3 +34,7 @@ func (s *Stmt) Query(args ...interface{}) *Rows {
 		drv:     s.drv,
 	}
 }
+
+func (s *Stmt) QueryRow(args ...interface{}) *Row {
+	return &Row{r: s.Query(args...)}
+}
