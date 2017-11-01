@@ -3,6 +3,7 @@ package sdm
 import (
 	"database/sql"
 	"reflect"
+	"sync"
 
 	"github.com/Ronmi/sdm/driver"
 )
@@ -16,19 +17,22 @@ type Stmt struct {
 	t       reflect.Type
 	drv     driver.Driver
 	columns []string
+	lock    sync.Mutex
 }
 
 func (s *Stmt) Query(args ...interface{}) *Rows {
 	r, err := s.Stmt.Query(args...)
-	var c []string
-	if err == nil {
-		c, err = r.Columns()
+
+	s.lock.Lock()
+	if err == nil && s.columns == nil {
+		s.columns, err = r.Columns()
 	}
+	s.lock.Unlock()
 
 	return &Rows{
 		rows:    r,
 		def:     s.def,
-		columns: c,
+		columns: s.columns,
 		e:       err,
 		t:       s.t,
 		drv:     s.drv,

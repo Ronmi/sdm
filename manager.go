@@ -377,6 +377,24 @@ func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
 	}, e
 }
 
+// PrepareSQL builds sql query with BuildSQL(), then prepare it
+//
+// It is faster than Prepare(data, BuildSQL()).
+func (m *Manager) PrepareSQL(data interface{}, tmpl string, qType driver.QuotingType) (*Stmt, error) {
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	info := m.getInfo(t)
+	qstr := m.BuildSQL(data, tmpl, qType)
+
+	stmt, e := m.Connection().Prepare(qstr)
+	return &Stmt{
+		Stmt:    stmt,
+		def:     info.Defs,
+		t:       t,
+		drv:     m.drv,
+		columns: m.Col(data, qType),
+	}, e
+}
+
 // Proxify proxies needed methods of sql.Rows
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
@@ -486,10 +504,10 @@ func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 //
 // Custom parameters are not supported, use Exec instead.
 //
-// Order of columns is not guaranteed, use Val() to generate it. For example:
+// Order of columns is not guaranteed, use Val/ValIns to generate it. For example:
 //
 //     qstr := m.BuildSQL(myStruct, `REPLACE INTO %table% (%cols%) VALUES (%vals%)`, driver.QInsert)
-//     m.Exec(qstr, m.Val(myStruct))
+//     m.Exec(qstr, m.ValIns(myStruct))
 func (m *Manager) BuildSQL(data interface{}, tmpl string, qType driver.QuotingType) (qstr string) {
 	cols := m.Col(data, qType)
 	sz := len(cols)
