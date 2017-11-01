@@ -90,7 +90,7 @@ func (tx *Tx) Commit() error {
 // Stmt is just same as sql.Tx.Stmt, buf for sdm
 func (tx *Tx) Stmt(s *Stmt) *Stmt {
 	return &Stmt{
-		Stmt:    tx.tx.Stmt(s.Stmt),
+		stmt:    tx.tx.Stmt(s.stmt),
 		def:     s.def,
 		t:       s.t,
 		drv:     s.drv,
