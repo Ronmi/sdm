@@ -8,7 +8,7 @@ import (
 	"github.com/Ronmi/sdm/driver"
 )
 
-// Stmt warps sql.Stmt
+// Stmt wraps sql.Stmt
 //
 // QueryRow is not supported since it need some modifications to sdm core.
 type Stmt struct {

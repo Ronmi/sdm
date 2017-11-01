@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-// Tx warps Manager in transaction
+// Tx wraps Manager in transaction
 type Tx struct {
 	tx *sql.Tx
 	m  *Manager

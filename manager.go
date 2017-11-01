@@ -372,7 +372,7 @@ func (m *Manager) Connection() *sql.DB {
 	return m.db
 }
 
-// Prepare warps sql.DB.Prepare
+// Prepare wraps sql.DB.Prepare
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
@@ -495,7 +495,7 @@ func (m *Manager) LoadSimple(data, pkVal interface{}) error {
 	return rows.Err()
 }
 
-// Exec warps sql.DB.Exec
+// Exec wraps sql.DB.Exec
 func (m *Manager) Exec(qstr string, args ...interface{}) (sql.Result, error) {
 	return m.db.Exec(qstr, args...)
 }
