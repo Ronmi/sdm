@@ -101,6 +101,37 @@ func (r *Rows) Columns() ([]string, error) {
 	return r.columns, r.e
 }
 
+// AppendTo read rest of records, and appends them to dst
+// It panics if dst is not a pointer to slice or type mismatch.
+//
+// It is caller's response to close the Rows.
+func (r *Rows) AppendTo(dst interface{}) error {
+	orig := reflect.ValueOf(dst)
+	dstValue := orig.Elem()
+	dstType := reflect.TypeOf(dst)
+	if dstType.Kind() != reflect.Ptr {
+		panic("sdm: Rows.AppendTo() accepts only pointer to slice")
+	}
+	sliceType := dstType.Elem().Elem()
+	isPtr := sliceType.Kind() == reflect.Ptr
+
+	for r.Next() {
+		data := reflect.New(r.t)
+		if err := r.Scan(data.Interface()); err != nil {
+			return err
+		}
+
+		if !isPtr {
+			data = data.Elem()
+		}
+
+		dstValue = reflect.Append(dstValue, data)
+	}
+	orig.Elem().Set(dstValue)
+
+	return nil
+}
+
 // Row re-implements sql.Row in sdm-way
 //
 // It is just an wrapper of Rows: calling Scan() and Close(), then return Err()

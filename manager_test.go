@@ -331,6 +331,32 @@ func TestManager(t *testing.T) {
 				find(driver.IndexTypeUnique, "b", []string{"eint"})
 				find(driver.IndexTypeIndex, "c", []string{"t"})
 			})
+
+			t.Run("AppendTo", func(t *testing.T) {
+				db, m := c.setup(t)
+				defer c.teardown(t, db)
+
+				// insert data
+				m.Insert(testok{ExportInt: 10})
+				m.Insert(testok{ExportInt: 11})
+
+				t.Run("Ptr", func(t *testing.T) {
+					arr := []*testok{}
+					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
+					rows := m.Query(testok{}, qstr)
+					if err := rows.AppendTo(&arr); err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+				})
+				t.Run("NonPtr", func(t *testing.T) {
+					arr := []testok{}
+					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
+					rows := m.Query(testok{}, qstr)
+					if err := rows.AppendTo(&arr); err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+				})
+			})
 		})
 	}
 }
