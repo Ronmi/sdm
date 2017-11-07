@@ -32,7 +32,7 @@ func (g *ExtGeneral) Init(t reflect.Type, c map[int]string) {
 	g.columns = c
 }
 
-func (g *ExtGeneral) ReadTo(data interface{}, retriever func(string) string) *sdm.ErrExtension {
+func (g *ExtGeneral) ReadTo(data interface{}, retriver func(string) string) *sdm.ErrExtension {
 	if g.typ == nil || g.columns == nil {
 		return &sdm.ErrExtension{
 			ExtName: "ExtGeneral",
@@ -62,7 +62,7 @@ func (g *ExtGeneral) ReadTo(data interface{}, retriever func(string) string) *sd
 		k := f.Kind()
 		c := g.columns[x]
 
-		data := retriever(c)
+		data := retriver(c)
 		if data == "" && k != reflect.Bool {
 			continue
 		}

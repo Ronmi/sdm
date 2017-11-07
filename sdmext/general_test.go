@@ -38,7 +38,8 @@ func egok(m *sdm.Manager, t *testing.T) {
 
 	ext := new(ExtGeneral)
 	actual := testok{}
-	if err := m.Ext(actual, ext).ReadTo(&actual, f); err != nil {
+	m.Ext(actual, ext)
+	if err := ext.ReadTo(&actual, f); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 

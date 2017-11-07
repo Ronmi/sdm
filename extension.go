@@ -12,9 +12,7 @@ import "reflect"
 type Extension interface {
 	// Mean to be called by sdm.Manager. An extension might not work
 	// before initialized.
-	Init(reflect.Type, map[int]string)
-
-	ReadTo(data interface{}, retriever func(string) string) *ErrExtension
+	Init(typ reflect.Type, mapFieldToColumn map[int]string)
 }
 
 // ErrExtension indicates something goes wrong when calling ReadTo
@@ -33,7 +31,7 @@ func (e *ErrExtension) Error() string {
 
 // Ext fills data ito struct using specified extension, panics if not registered and
 // auto registering is not enabled
-func (m *Manager) Ext(data interface{}, e Extension) Extension {
+func (m *Manager) Ext(data interface{}, e Extension) {
 	v := reflect.ValueOf(data)
 	if v.Type().Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -47,5 +45,4 @@ func (m *Manager) Ext(data interface{}, e Extension) Extension {
 	}
 
 	e.Init(t, cols)
-	return e
 }
