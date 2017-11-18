@@ -368,6 +368,19 @@ func TestManager(t *testing.T) {
 					t.Fatalf("expected [%s], got [%s]", expect, actual)
 				}
 			})
+
+			t.Run("AsArgs", func(t *testing.T) {
+				db, m := c.setup(t)
+				defer c.teardown(t, db)
+
+				arr := []int{1, 2, 3}
+				res := m.AsArgs(arr)
+				for x, v := range res {
+					if v != arr[x] {
+						t.Errorf("expect %v, got %v at %d", arr[x], v, x)
+					}
+				}
+			})
 		})
 	}
 }

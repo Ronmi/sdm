@@ -731,3 +731,17 @@ func (m *Manager) SQLIn(arr interface{}) string {
 	holders := strings.Repeat(holder+",", sz)
 	return `IN (` + holders[:len(holders)-1] + `)`
 }
+
+// AsArgs converts any array/slice/map to []interface{} panics if not these type
+//
+// Although passing channel to it does not panic, DO NOT DO THAT!
+func (m *Manager) AsArgs(arr interface{}) []interface{} {
+	v := reflect.ValueOf(arr)
+	sz := v.Len()
+	ret := make([]interface{}, sz)
+	for x := 0; x < sz; x++ {
+		ret[x] = v.Index(x).Interface()
+	}
+
+	return ret
+}
