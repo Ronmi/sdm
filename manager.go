@@ -718,3 +718,16 @@ func (m *Manager) RunBulk(b Bulk) (sql.Result, error) {
 
 	return ret, err
 }
+
+// SQLIn generate SQL IN clause, panics if not array/slice/map/chan
+//
+//     users = []int{1, 2, 3}
+//     qstr := `SELECT %cols% FROM %table% WHERE id ` + m.SQLIn(users)
+func (m *Manager) SQLIn(arr interface{}) string {
+	v := reflect.ValueOf(arr)
+	sz := v.Len()
+	typ := v.Type().Elem()
+	holder := m.Driver().GetPlaceholder(typ)
+	holders := strings.Repeat(holder+",", sz)
+	return `IN (` + holders[:len(holders)-1] + `)`
+}

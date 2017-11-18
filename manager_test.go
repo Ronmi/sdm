@@ -357,6 +357,17 @@ func TestManager(t *testing.T) {
 					}
 				})
 			})
+
+			t.Run("SQLIn", func(t *testing.T) {
+				db, m := c.setup(t)
+				defer c.teardown(t, db)
+
+				arr := []int{1, 2, 3}
+				expect := `IN (?,?,?)`
+				if actual := m.SQLIn(arr); actual != expect {
+					t.Fatalf("expected [%s], got [%s]", expect, actual)
+				}
+			})
 		})
 	}
 }
