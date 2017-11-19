@@ -12,7 +12,7 @@ before_install:
   - mysql -e 'CREATE DATABASE test;'
 
 env:
-  - "MYSQL_DSN=root@(127.0.0.1:3306)/test"
+  - "MYSQL_DSN=root@(127.0.0.1:3306)/test?sql_mode=TRADITIONAL"
 
 script:
   - go test -run . -benchmem -bench . ./...

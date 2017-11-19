@@ -39,6 +39,6 @@ Column "s4" will be TEXT type, others are VARCHAR(256) type.
 
 Converting date and time types
 
-This driver supports auto-converting no matter what database/sql/driver your use. But for table creation, there is something special worth to note: As in MySQL 5.7, it is not allowed to create timestamp column without providing default value unless you manually unset related settings in "@@sql_mode". To overcome this, all time.Time fields are generated with "DEFAULT CURRENT_TIMESTAMP".
+This driver supports auto-converting no matter what database/sql/driver your use. But for table creation, there is something special worth to note: As in MySQL 5.7, it is not allowed to set zero value to timestamp unless you manually unset related settings in "@@sql_mode". You MUST take care of it yourself.
 */
 package mysql
