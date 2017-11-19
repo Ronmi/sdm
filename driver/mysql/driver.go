@@ -74,7 +74,7 @@ func (d *drv) getType(typ reflect.Type, name string, indexes []driver.Index) str
 	}
 
 	if driver.IsTime(t) {
-		return "TIMESTAMP" + postfix
+		return "TIMESTAMP" + postfix + " DEFAULT CURRENT_TIMESTAMP"
 	}
 
 	panic("sdm: driver: mysql: unsupported type " + t.String())
