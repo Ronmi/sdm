@@ -208,7 +208,7 @@ func init() {
 	driver.RegisterDriver("mysql", func(p map[string]string) driver.Driver {
 		charset := "utf8"
 		collate := "utf8_general_ci"
-		sSize := 256
+		sSize := 255
 		bSize := 2048
 
 		if c, ok := p["charset"]; ok {

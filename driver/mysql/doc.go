@@ -8,7 +8,7 @@ This driver accepts four DSN parameters:
 
   - charset=utf8: Default character set for table and string fields.
   - collate=utf8_general_ci: Default collation for table and string fields.
-  - stringKeySize=256: Max length of indexed string fields, cannot exceed 256.
+  - stringKeySize=255: Max length of indexed string fields, cannot exceed 256.
   - blobKeySize=2048: Max key length for indexed []byte fields.
 
   For example:
