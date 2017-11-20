@@ -32,10 +32,22 @@ func scanValue(vs, v reflect.Value, src interface{}) error {
 	}
 	str := string(arr)
 	if t, err := time.Parse(`2006-01-02 15:04:05.000000`, str); err == nil {
+		// DATETIME/TIMESTAMP with fraction
 		v.Set(reflect.ValueOf(t))
 		return nil
 	}
 	if t, err := time.Parse(`2006-01-02 15:04:05`, str); err == nil {
+		// DATETIME/TIMESTAMP
+		v.Set(reflect.ValueOf(t))
+		return nil
+	}
+	if t, err := time.Parse(`2006-01-02`, str); err == nil {
+		// DATE
+		v.Set(reflect.ValueOf(t))
+		return nil
+	}
+	if t, err := time.Parse(`2006`, str); err == nil {
+		// YEAR
 		v.Set(reflect.ValueOf(t))
 		return nil
 	}
