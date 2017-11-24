@@ -16,23 +16,25 @@ import (
 // It supports integers/floats/string/boolean/time.Time and their pointers.
 //
 // To prevent timezone related problems, time.Time is exported/imported as
-// unix timestamp in seconds (Time.Unix()).
+// unix timestamp in milliseconds (Time.UnixNano()/1000000).
 //
 // SJSONFactory is neither thread-safe nor reentrant, initialize it multiple
 // times or after wrapper created might run into race condition.
 type SJSONFactory struct {
 	typ  reflect.Type
-	f2c  map[int]string
 	keys map[int][]byte
+	cols map[string]int
 }
 
 func (f *SJSONFactory) Init(typ reflect.Type, mapFieldToColumn map[int]string) {
 	f.typ = typ
-	f.f2c = mapFieldToColumn
 	f.keys = make(map[int][]byte)
+	f.cols = make(map[string]int)
 
-	for x, c := range f.f2c {
-		f.keys[x], _ = json.Marshal(c)
+	for x, c := range mapFieldToColumn {
+		data, _ := json.Marshal(c)
+		f.keys[x] = data
+		f.cols[string(data)] = x
 	}
 }
 
@@ -73,7 +75,8 @@ func (f *SJSONFactory) encode(buf *bytes.Buffer, v reflect.Value) {
 		buf.WriteString(strconv.FormatFloat(v.Float(), 'f', -1, 64))
 		return
 	case driver.IsTime(t):
-		buf.WriteString(strconv.FormatInt(v.Interface().(time.Time).Unix(), 10))
+		buf.WriteString(strconv.FormatInt(
+			v.Interface().(time.Time).UnixNano()/1000000, 10))
 		return
 	}
 	panic(errors.New("SJSONFactory does not support [" + t.PkgPath() + "." + t.Name() + "]"))
@@ -102,6 +105,57 @@ func (f *SJSONFactory) m(data interface{}) ([]byte, error) {
 	ret := buf.Bytes()
 	ret[len(ret)-1] = '}'
 	return ret, nil
+}
+
+func (f *SJSONFactory) decode(data []byte, target reflect.Value) error {
+	if target.Kind() == reflect.Ptr {
+		if target.IsNil() {
+			target.Set(reflect.New(target.Type().Elem()))
+		}
+
+		target = target.Elem()
+	}
+
+	if driver.IsTime(target.Type()) {
+		n := json.Number(string(data))
+		i, err := n.Int64()
+		if err != nil {
+			f, err := n.Float64()
+			if err != nil {
+				return err
+			}
+			i = int64(f)
+		}
+		t := time.Unix(i/1000, i%1000)
+		target.Set(reflect.ValueOf(t))
+
+		return nil
+	}
+
+	return json.Unmarshal(data, target.Interface())
+}
+
+func (f *SJSONFactory) u(data interface{}, buf []byte) error {
+	return f.decode(buf, reflect.ValueOf(data))
+}
+
+// JSONWrapper wraps registered struct to convert to/from json
+type JSONWrapper interface {
+	json.Marshaler
+	json.Unmarshaler
+}
+
+// Wrap wraps registered struct.
+//
+// Pass incompatible type may cause unexpected issue.
+//
+// For unmarshaling, do not forget to pass a settable interface.
+func (f *SJSONFactory) Wrap(data interface{}) JSONWrapper {
+	return &jsonWrapper{
+		m:    f.m,
+		u:    f.u,
+		data: data,
+	}
 }
 
 type jsonWrapper struct {

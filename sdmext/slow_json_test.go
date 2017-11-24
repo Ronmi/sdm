@@ -30,7 +30,8 @@ func TestSJSONEncode(t *testing.T) {
 		{name: "string-special", data: `a"`, expect: `"a\""`},
 		{name: "[]byte", data: []byte(`a"`), expect: `"a\""`},
 		{name: "[]rune", data: []rune(`a"`), expect: `"a\""`},
-		{name: "time", data: now, expect: strconv.FormatInt(now.Unix(), 10)},
+		{name: "time", data: now, expect: strconv.FormatInt(
+			now.UnixNano()/1000000, 10)},
 	}
 
 	for _, c := range cases {
