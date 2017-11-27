@@ -150,7 +150,7 @@ func (m *Manager) register(t reflect.Type, tableName string) {
 
 			for _, t := range []string{driver.IndexTypeIndex, driver.IndexTypePrimary, driver.IndexTypeUnique} {
 				l := len(t) + 1
-				if len(tag) <= l {
+				if len(tag) < l {
 					continue
 				}
 
