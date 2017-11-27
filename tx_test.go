@@ -27,8 +27,8 @@ func TestTxCommit(t *testing.T) {
 	}
 
 	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND t=1467676800`)
-	if err := row.Scan(&cnt); err != nil {
+	err := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=3 AND estr="insert" AND t=1467676800`)
+	if err != nil {
 		t.Fatalf("Cannot scan COUNT(eint) for commit: %s", err)
 	}
 	if cnt != 1 {
@@ -56,8 +56,8 @@ func TestTxRollback(t *testing.T) {
 	}
 
 	var cnt int
-	row := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND t=1467676800`)
-	if err := row.Scan(&cnt); err != nil {
+	err := db.QueryRow(`SELECT COUNT(eint) FROM testok WHERE eint=4 AND estr="update" AND t=1467676800`)
+	if err != nil {
 		t.Fatalf("Cannot scan COUNT(eint) for rollback: %s", err)
 	}
 	if cnt != 0 {
