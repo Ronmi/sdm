@@ -31,7 +31,11 @@ func (s *Stmt) Query(args ...interface{}) *Rows {
 
 	s.lock.Lock()
 	if err == nil && s.columns == nil {
-		s.columns, err = r.Columns()
+		if s.columns, err = r.Columns(); err != nil {
+			for x, v := range s.columns {
+				s.columns[x] = s.drv.ParseColumnName(v)
+			}
+		}
 	}
 	s.lock.Unlock()
 
@@ -49,5 +53,7 @@ func (s *Stmt) Query(args ...interface{}) *Rows {
 //
 // See sdm.Row for more info.
 func (s *Stmt) QueryRow(args ...interface{}) *Row {
-	return &Row{r: s.Query(args...)}
+	ret := &Row{r: s.Query(args...)}
+	ret.r.Next()
+	return ret
 }

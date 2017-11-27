@@ -372,9 +372,14 @@ func (m *Manager) Connection() *sql.DB {
 	return m.db
 }
 
-func (m *Manager) prepare(p func(string) (*sql.Stmt, error), data interface{}, qstr string, cols []string) (*Stmt, error) {
-	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	f := m.getInfo(t).Defs
+func (m *Manager) prepare(
+	p func(string) (*sql.Stmt, error),
+	data interface{},
+	qstr string,
+	t reflect.Type,
+	f map[string]driver.Column,
+	cols []string,
+) (*Stmt, error) {
 
 	stmt, e := p(qstr)
 	return &Stmt{
@@ -389,7 +394,9 @@ func (m *Manager) prepare(p func(string) (*sql.Stmt, error), data interface{}, q
 // Prepare wraps sql.DB.Prepare
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
-	return m.prepare(m.Connection().Prepare, data, qstr, nil)
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	f := m.getInfo(t).Defs
+	return m.prepare(m.Connection().Prepare, data, qstr, t, f, nil)
 }
 
 // PrepareSQL builds sql query with BuildSQL(), then prepare it
@@ -397,7 +404,13 @@ func (m *Manager) Prepare(data interface{}, qstr string) (*Stmt, error) {
 // It is faster than Prepare(data, BuildSQL()), since it does not depend on sql.Rows.Columns()
 func (m *Manager) PrepareSQL(data interface{}, tmpl string, qType driver.QuotingType) (*Stmt, error) {
 	qstr := m.BuildSQL(data, tmpl, qType)
-	return m.prepare(m.Connection().Prepare, data, qstr, m.Col(data, qType))
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	info := m.getInfo(t)
+	cols := make([]string, len(info.Fields))
+	for x, c := range info.Fields {
+		cols[x] = c.Name
+	}
+	return m.prepare(m.Connection().Prepare, data, qstr, t, info.Defs, cols)
 }
 
 // Proxify proxies needed methods of sql.Rows
@@ -406,6 +419,11 @@ func (m *Manager) Proxify(r *sql.Rows, data interface{}) *Rows {
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
 	f := m.getInfo(t).Defs
 	c, e := r.Columns()
+	if e != nil {
+		for x, v := range c {
+			c[x] = m.drv.ParseColumnName(v)
+		}
+	}
 
 	return &Rows{
 		r,

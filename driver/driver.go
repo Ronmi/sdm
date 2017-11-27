@@ -31,6 +31,9 @@ type Driver interface {
 	// Get unnamed placeholder for a type, used in INSERT, UPDATE and WHERE clause, mostly "?"
 	GetPlaceholder(typ reflect.Type) string
 
+	// Get real column name, ignore table or anything else, used in sdm.Rows and sdm.Row
+	ParseColumnName(string) string
+
 	// Handling custom type conversion here.
 	//
 	// For internal supported types and types support Scanner/Valuer, implementation

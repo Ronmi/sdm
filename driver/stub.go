@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	sqlDriver "database/sql/driver"
 	"reflect"
+	"strings"
 )
 
 type wrappable interface {
@@ -31,6 +32,11 @@ func (s Stub) CreateTable(db *sql.DB, name string, typ reflect.Type, cols []Colu
 // CreateTableNotExist is not implemented, panic always.
 func (s Stub) CreateTableNotExist(db *sql.DB, name string, typ reflect.Type, cols []Column, indexes []Index) (sql.Result, error) {
 	panic("sdm: driver: Default stub driver does not support table creation!")
+}
+
+func (s Stub) ParseColumnName(c string) string {
+	arr := strings.Split(c, ".")
+	return arr[len(arr)-1]
 }
 
 func (s Stub) Quote(name string) string {

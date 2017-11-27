@@ -43,13 +43,22 @@ func (tx *Tx) QueryRow(typ interface{}, qstr string, args ...interface{}) *Row {
 // Prepare wraps sql.Tx.Prepare
 // It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Prepare(data interface{}, qstr string) (*Stmt, error) {
-	return tx.m.prepare(tx.tx.Prepare, data, qstr, nil)
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	f := tx.m.getInfo(t).Defs
+	return tx.m.prepare(tx.tx.Prepare, data, qstr, t, f, nil)
 }
 
 // Prepare wraps sdm.Manager.PrepareSQL
 func (tx *Tx) PrepareSQL(data interface{}, tmpl string, qType driver.QuotingType) (*Stmt, error) {
 	qstr := tx.m.BuildSQL(data, tmpl, qType)
-	return tx.m.prepare(tx.tx.Prepare, data, qstr, tx.m.Col(data, qType))
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	info := tx.m.getInfo(t)
+	cols := make([]string, len(info.Fields))
+	for x, c := range info.Fields {
+		cols[x] = c.Name
+	}
+
+	return tx.m.prepare(tx.tx.Prepare, data, qstr, t, info.Defs, cols)
 }
 
 // Insert inserts data into table.
