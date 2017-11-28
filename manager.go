@@ -234,6 +234,37 @@ func (m *Manager) GetTable(t reflect.Type) (ret string) {
 	return info.Table
 }
 
+// DropAllTables drops all registered tables, true if all tables are dropped
+//
+// It is here for lazy guys writing tiny applications. The algorithm it use has
+// complexity of O(n!). Yes, slow as fxxk.So you should manage table relations
+// on your own, and drop them by youself.
+func (m *Manager) DropAllTables(dropFunc func(table string) error) bool {
+	pending := map[string]bool{}
+	for _, i := range m.info {
+		pending[i.Table] = true
+	}
+
+	rest := len(pending)
+	cnt := 1
+	for cnt > 0 {
+		cnt = 0
+		for t, ok := range pending {
+			if !ok {
+				continue
+			}
+
+			if err := dropFunc(t); err == nil {
+				cnt = 1
+				rest--
+				pending[t] = false
+			}
+		}
+	}
+
+	return rest == 0
+}
+
 // Col returns a list of columns in sql format, including AUTO INCREMENT columns.
 // It panics if type is not registered and auto register is not enabled.
 func (m *Manager) Col(data interface{}, qType driver.QuotingType) (ret []string) {
