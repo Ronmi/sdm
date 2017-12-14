@@ -37,7 +37,14 @@ func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
 
 // QueryRow makes SQL query and proxies it, but allowing you to read only first row
 func (tx *Tx) QueryRow(data interface{}, qstr string, args ...interface{}) error {
-	return (&Row{r: tx.Query(data, qstr, args...)}).Scan(data)
+	rows := tx.Query(data, qstr, args...)
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil
+	}
+
+	return rows.Scan(data)
 }
 
 // Prepare wraps sql.Tx.Prepare

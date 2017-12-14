@@ -131,17 +131,3 @@ func (r *Rows) AppendTo(dst interface{}) error {
 
 	return nil
 }
-
-// Row re-implements sql.Row in sdm-way
-//
-// It is just an wrapper of Rows: calling Scan() and Close(), then return Err()
-type Row struct {
-	r *Rows
-}
-
-func (r *Row) Scan(data interface{}) error {
-	defer r.r.Close()
-
-	r.r.Scan(data)
-	return r.r.Err()
-}

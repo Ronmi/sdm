@@ -49,11 +49,13 @@ func (s *Stmt) Query(args ...interface{}) *Rows {
 	}
 }
 
-// QueryRow is like sql.Stmt.QueryRow, but implementing detail differs.
-//
-// See sdm.Row for more info.
-func (s *Stmt) QueryRow(args ...interface{}) *Row {
-	ret := &Row{r: s.Query(args...)}
-	ret.r.Next()
-	return ret
+// QueryRow is like Manager.QueryRow, but executes on prepared statement
+func (s *Stmt) QueryRow(data interface{}, args ...interface{}) error {
+	rows := s.Query(args...)
+	defer rows.Close()
+	if !rows.Next() {
+		return nil
+	}
+
+	return rows.Scan(data)
 }
