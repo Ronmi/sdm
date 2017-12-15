@@ -504,6 +504,10 @@ func (m *Manager) QueryRow(data interface{}, qstr string, args ...interface{}) e
 	rows := m.Query(data, qstr, args...)
 	defer rows.Close()
 
+	if !rows.Next() {
+		return nil
+	}
+
 	rows.Scan(data)
 	return rows.Err()
 }
