@@ -501,7 +501,7 @@ func (m *Manager) Query(typ interface{}, qstr string, args ...interface{}) *Rows
 //
 // QueryRow is a wrapper for Query, see Query() for detail.
 func (m *Manager) QueryRow(data interface{}, qstr string, args ...interface{}) error {
-	rows := m.Query(data, qstr, args)
+	rows := m.Query(data, qstr, args...)
 	defer rows.Close()
 
 	rows.Scan(data)
