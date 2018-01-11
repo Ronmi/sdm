@@ -75,7 +75,9 @@ func (tx *Tx) PrepareSQL(data interface{}, tmpl string, qType driver.QuotingType
 func (tx *Tx) Insert(data interface{}) (sql.Result, error) {
 	qstr, vals := tx.m.makeInsert(data)
 	res, err := tx.tx.Exec(qstr, vals...)
-	tx.m.tryFillPK(data, res)
+	if err == nil {
+		tx.m.tryFillPK(data, res)
+	}
 	return res, err
 }
 

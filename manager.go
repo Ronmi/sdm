@@ -639,11 +639,11 @@ func (m *Manager) tryFillPK(data interface{}, res sql.Result) {
 		}
 
 		vf := v.Field(col.ID)
+
 		id, err := res.LastInsertId()
 		if err != nil || id < 1 {
 			return
 		}
-
 		vf.SetInt(id)
 	}
 }
