@@ -29,6 +29,10 @@ func (e *ErrExtension) Error() string {
 	return e.ExtName + ": error reading into " + e.StructName + "." + e.FieldName + ": " + e.Reason.Error()
 }
 
+func (e *ErrExtension) String() string {
+	return e.Error()
+}
+
 // Ext fills data ito struct using specified extension, panics if not registered and
 // auto registering is not enabled
 func (m *Manager) Ext(data interface{}, e Extension) {
