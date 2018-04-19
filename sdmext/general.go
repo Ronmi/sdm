@@ -48,7 +48,7 @@ func (g *ExtGeneral) ReadTo(data interface{}, retriver func(string) string) *sdm
 			Reason:     errors.New("need pointer type to set value"),
 		}
 	}
-	vstruct.Elem()
+	vstruct = vstruct.Elem()
 	if t := vstruct.Type(); t != g.typ {
 		return &sdm.ErrExtension{
 			ExtName:    "ExtGeneral",
