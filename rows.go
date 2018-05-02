@@ -131,3 +131,53 @@ func (r *Rows) AppendTo(dst interface{}) error {
 
 	return nil
 }
+
+// SetTo read rest of records, and set them to dst map.
+//
+// It panics if
+//
+//   1. dst is not a pointer to map
+//   2. element type of dst is not registered
+//   3. returned type of getKey is not compatible with key type of dst
+//
+// It is caller's response to close the Rows.
+//
+// The data passed to getKey() is always pointer type. Here's an example of getKey()
+//
+//     type MyStruct struct {
+//         ID   int    `sdm:"id,pk_"`
+//         Name string `sdm:"name"`
+//     }
+//     getKey := func(v interface{}) interface{} {
+//         return v.(*MyStruct).ID
+//     }
+//
+//  TODO: add default implementation of getKey
+func (r *Rows) SetTo(dst interface{}, getKey func(interface{}) interface{}) (err error) {
+	orig := reflect.ValueOf(dst)
+	dstType := reflect.TypeOf(dst)
+	if dstType.Kind() != reflect.Ptr {
+		panic("sdm: Rows.AppendTo() accepts only pointer to map")
+	}
+	if dstType.Elem().Kind() != reflect.Map {
+		panic("sdm: Rows.AppendTo() accepts only pointer to map")
+	}
+	valueType := dstType.Elem().Elem()
+	isPtr := valueType.Kind() == reflect.Ptr
+
+	for r.Next() {
+		data := reflect.New(r.t)
+		if err := r.Scan(data.Interface()); err != nil {
+			return err
+		}
+
+		key := getKey(data.Interface())
+
+		if !isPtr {
+			data = data.Elem()
+		}
+		orig.Elem().SetMapIndex(reflect.ValueOf(key), data)
+	}
+
+	return nil
+}

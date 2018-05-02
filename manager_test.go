@@ -358,6 +358,54 @@ func TestManager(t *testing.T) {
 				})
 			})
 
+			t.Run("SetTo", func(t *testing.T) {
+				db, m := c.setup(t)
+				defer c.teardown(t, db)
+
+				// insert data
+				m.Insert(testok{ExportInt: 10})
+				m.Insert(testok{ExportInt: 11})
+
+				getKey := func(v interface{}) interface{} {
+					return v.(*testok).ExportInt
+				}
+
+				t.Run("Ptr", func(t *testing.T) {
+					arr := map[int]*testok{}
+					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
+					rows := m.Query(testok{}, qstr)
+					if err := rows.SetTo(&arr, getKey); err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+					if l := len(arr); l != 2 {
+						t.Errorf("unexpected map size: %d", l)
+					}
+					if arr[10] == nil {
+						t.Error("expected to have record#10")
+					}
+					if arr[11] == nil {
+						t.Error("expected to have record#10")
+					}
+				})
+				t.Run("NonPtr", func(t *testing.T) {
+					arr := map[int]testok{}
+					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
+					rows := m.Query(testok{}, qstr)
+					if err := rows.SetTo(&arr, getKey); err != nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+					if l := len(arr); l != 2 {
+						t.Errorf("unexpected map size: %d", l)
+					}
+					if arr[10].ExportInt == 0 {
+						t.Error("expected to have record#10")
+					}
+					if arr[11].ExportInt == 0 {
+						t.Error("expected to have record#10")
+					}
+				})
+			})
+
 			t.Run("SQLIn", func(t *testing.T) {
 				db, m := c.setup(t)
 				defer c.teardown(t, db)
