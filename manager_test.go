@@ -465,6 +465,22 @@ func TestManager(t *testing.T) {
 					}
 				}
 			})
+
+			t.Run("KeyAsArgs", func(t *testing.T) {
+				db, m := c.setup(t)
+				defer c.teardown(t, db)
+
+				arr := map[int]bool{
+					1: true,
+					2: true,
+					3: true}
+				res := m.KeyAsArgs(arr)
+				for _, v := range res {
+					if _, ok := arr[v.(int)]; !ok {
+						t.Errorf("%v is not found", v)
+					}
+				}
+			})
 		})
 	}
 }

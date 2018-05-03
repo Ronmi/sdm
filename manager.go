@@ -797,3 +797,14 @@ func (m *Manager) AsArgs(arr interface{}) []interface{} {
 
 	return ret
 }
+
+// KeyAsArgs converts any map to []interface{} panics if type mismatch
+func (m *Manager) KeyAsArgs(arr interface{}) []interface{} {
+	keys := reflect.ValueOf(arr).MapKeys()
+	ret := make([]interface{}, len(keys))
+	for x, k := range keys {
+		ret[x] = k.Interface()
+	}
+
+	return ret
+}
