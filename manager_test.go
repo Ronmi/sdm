@@ -23,6 +23,14 @@ type testok struct {
 	ExportTime   time.Time `sdm:"t,idx_c"`
 }
 
+func (x testok) equals(y testok) bool {
+	return !(x.Perper != y.Perper ||
+		x.nonExportInt != y.nonExportInt ||
+		x.ExportInt != y.ExportInt ||
+		x.ExportString != y.ExportString ||
+		x.ExportTime.Unix() != y.ExportTime.Unix())
+}
+
 type testai struct {
 	ExportInt    int       `sdm:"eint,ai"`
 	ExportString string    `sdm:"estr"`
@@ -337,23 +345,46 @@ func TestManager(t *testing.T) {
 				defer c.teardown(t, db)
 
 				// insert data
-				m.Insert(testok{ExportInt: 10})
-				m.Insert(testok{ExportInt: 11})
+				expect := []testok{
+					testok{ExportInt: 10, ExportString: "10", ExportTime: time.Now().Round(time.Second)},
+					testok{ExportInt: 11, ExportString: "11", ExportTime: time.Now().Round(time.Second)},
+				}
+				for _, x := range expect {
+					m.Insert(&x)
+				}
 
 				t.Run("Ptr", func(t *testing.T) {
 					arr := []*testok{}
-					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
+					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table% ORDER BY eint ASC`, driver.QSelect)
 					rows := m.Query(testok{}, qstr)
+					defer rows.Close()
 					if err := rows.AppendTo(&arr); err != nil {
 						t.Fatalf("unexpected error: %s", err)
+					}
+					if x, y := len(arr), len(expect); x != y {
+						t.Errorf("expected length to be %d, got %d", y, x)
+					}
+					for x, v := range arr {
+						if !v.equals(expect[x]) {
+							t.Errorf("unexpected element#%d: %+v", x, v)
+						}
 					}
 				})
 				t.Run("NonPtr", func(t *testing.T) {
 					arr := []testok{}
-					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
+					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table% ORDER BY eint ASC`, driver.QSelect)
 					rows := m.Query(testok{}, qstr)
+					defer rows.Close()
 					if err := rows.AppendTo(&arr); err != nil {
 						t.Fatalf("unexpected error: %s", err)
+					}
+					if x, y := len(arr), len(expect); x != y {
+						t.Errorf("expected length to be %d, got %d", y, x)
+					}
+					for x, v := range arr {
+						if !v.equals(expect[x]) {
+							t.Errorf("unexpected element#%d: %+v", x, v)
+						}
 					}
 				})
 			})
@@ -362,9 +393,14 @@ func TestManager(t *testing.T) {
 				db, m := c.setup(t)
 				defer c.teardown(t, db)
 
+				expect := map[int]testok{
+					12: testok{ExportInt: 12, ExportString: "10", ExportTime: time.Now().Round(time.Second)},
+					13: testok{ExportInt: 13, ExportString: "11", ExportTime: time.Now().Round(time.Second)},
+				}
 				// insert data
-				m.Insert(testok{ExportInt: 10})
-				m.Insert(testok{ExportInt: 11})
+				for _, x := range expect {
+					m.Insert(&x)
+				}
 
 				getKey := func(v interface{}) interface{} {
 					return v.(*testok).ExportInt
@@ -374,34 +410,34 @@ func TestManager(t *testing.T) {
 					arr := map[int]*testok{}
 					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
 					rows := m.Query(testok{}, qstr)
+					defer rows.Close()
 					if err := rows.SetTo(&arr, getKey); err != nil {
 						t.Fatalf("unexpected error: %s", err)
 					}
-					if l := len(arr); l != 2 {
-						t.Errorf("unexpected map size: %d", l)
+					if x, y := len(arr), len(expect); x != y {
+						t.Errorf("expected length to be %d, got %d", y, x)
 					}
-					if arr[10] == nil {
-						t.Error("expected to have record#10")
-					}
-					if arr[11] == nil {
-						t.Error("expected to have record#10")
+					for x, v := range arr {
+						if !v.equals(expect[x]) {
+							t.Errorf("unexpected element#%d: %+v", x, v)
+						}
 					}
 				})
 				t.Run("NonPtr", func(t *testing.T) {
 					arr := map[int]testok{}
 					qstr := m.BuildSQL(testok{}, `SELECT %cols% FROM %table%`, driver.QSelect)
 					rows := m.Query(testok{}, qstr)
+					defer rows.Close()
 					if err := rows.SetTo(&arr, getKey); err != nil {
 						t.Fatalf("unexpected error: %s", err)
 					}
-					if l := len(arr); l != 2 {
-						t.Errorf("unexpected map size: %d", l)
+					if x, y := len(arr), len(expect); x != y {
+						t.Errorf("expected length to be %d, got %d", y, x)
 					}
-					if arr[10].ExportInt == 0 {
-						t.Error("expected to have record#10")
-					}
-					if arr[11].ExportInt == 0 {
-						t.Error("expected to have record#10")
+					for x, v := range arr {
+						if !v.equals(expect[x]) {
+							t.Errorf("unexpected element#%d: %+v", x, v)
+						}
 					}
 				})
 			})
