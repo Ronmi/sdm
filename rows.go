@@ -154,7 +154,7 @@ func (r *Rows) AppendTo(dst interface{}) error {
 //
 //  TODO: add default implementation of getKey
 func (r *Rows) SetTo(dst interface{}, getKey func(interface{}) interface{}) (err error) {
-	orig := reflect.ValueOf(dst)
+	orig := reflect.ValueOf(dst).Elem()
 	dstType := reflect.TypeOf(dst)
 	if dstType.Kind() != reflect.Ptr {
 		panic("sdm: Rows.AppendTo() accepts only pointer to map")
@@ -176,7 +176,7 @@ func (r *Rows) SetTo(dst interface{}, getKey func(interface{}) interface{}) (err
 		if !isPtr {
 			data = data.Elem()
 		}
-		orig.Elem().SetMapIndex(reflect.ValueOf(key), data)
+		orig.SetMapIndex(reflect.ValueOf(key), data)
 	}
 
 	return nil
