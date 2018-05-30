@@ -20,6 +20,11 @@ type Stmt struct {
 	lock    sync.Mutex
 }
 
+// Close is identical to sql.Stmt.Close
+func (s *Stmt) Close() (err error) {
+	return s.stmt.Close()
+}
+
 // Exec is identical to sql.Stmt.Exec
 func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 	return s.stmt.Exec(args...)
