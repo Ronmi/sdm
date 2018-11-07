@@ -787,24 +787,17 @@ func (m *Manager) SQLIn(arr interface{}) (ret string) {
 // AsArgs converts any array/slice/map to []interface{} panics if not these type
 //
 // Although passing channel to it does not panic, DO NOT DO THAT!
+//
+// DEPRECATED: Moved to package function since it's not necessary to bind on Manager.
+// Will be removed at v1.0.0.
 func (m *Manager) AsArgs(arr interface{}) []interface{} {
-	v := reflect.ValueOf(arr)
-	sz := v.Len()
-	ret := make([]interface{}, sz)
-	for x := 0; x < sz; x++ {
-		ret[x] = v.Index(x).Interface()
-	}
-
-	return ret
+	return AsArgs(arr)
 }
 
 // KeyAsArgs converts any map to []interface{} panics if type mismatch
+//
+// DEPRECATED: Moved to package function since it's not necessary to bind on Manager.
+// Will be removed at v1.0.0.
 func (m *Manager) KeyAsArgs(arr interface{}) []interface{} {
-	keys := reflect.ValueOf(arr).MapKeys()
-	ret := make([]interface{}, len(keys))
-	for x, k := range keys {
-		ret[x] = k.Interface()
-	}
-
-	return ret
+	return KeyAsArgs(arr)
 }
