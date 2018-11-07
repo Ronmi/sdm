@@ -14,6 +14,13 @@ type Tx struct {
 	m  *Manager
 }
 
+// SQLIn generate SQL IN clause, panics if not array/slice/map/chan
+//
+// It's just wrapper for Manager.SQLIn().
+func (tx *Tx) SQLIn(arr interface{}) (ret string) {
+	return tx.m.SQLIn(arr)
+}
+
 // Query makes SQL query and proxies it
 // It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {

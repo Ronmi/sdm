@@ -775,7 +775,7 @@ func (m *Manager) RunBulk(b Bulk) (sql.Result, error) {
 //
 //     users = []int{1, 2, 3}
 //     qstr := `SELECT %cols% FROM %table% WHERE id ` + m.SQLIn(users)
-func (m *Manager) SQLIn(arr interface{}) string {
+func (m *Manager) SQLIn(arr interface{}) (ret string) {
 	v := reflect.ValueOf(arr)
 	sz := v.Len()
 	typ := v.Type().Elem()

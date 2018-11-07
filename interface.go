@@ -11,6 +11,7 @@ import (
 // If you are writing some queries which supports both transaction and
 // non-transaction mode should depend on this instead of Manager/Tx.
 type Executable interface {
+	SQLIn(arr interface{}) string
 	Query(typ interface{}, qstr string, args ...interface{}) *Rows
 	QueryRow(data interface{}, qstr string, args ...interface{}) error
 	Prepare(data interface{}, qstr string) (*Stmt, error)
