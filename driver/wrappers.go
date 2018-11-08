@@ -22,7 +22,7 @@ func scanValue(vs, v reflect.Value) error {
 		return nil
 	}
 
-	v.Set(vs)
+	v.Set(vs.Convert(v.Type()))
 	return nil
 }
 

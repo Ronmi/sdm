@@ -73,7 +73,7 @@ func (s Stub) getWrapper(v reflect.Value) (ret wrappable, ok bool) {
 		return wrapper(v), true
 	}
 
-	switch reflect.Indirect(v).Type().Kind() {
+	switch v.Type().Elem().Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		fallthrough
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
