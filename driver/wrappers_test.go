@@ -118,7 +118,7 @@ func TestValueSimple(t *testing.T) {
 		{
 			title: "Int",
 			field: 1,
-			value: i,
+			value: int64(i),
 		},
 		{
 			title: "Float",
@@ -141,8 +141,14 @@ func TestValueSimple(t *testing.T) {
 				t.Fatalf("cannot get value: %s", err)
 			}
 
-			if reflect.ValueOf(v).Elem().Interface() != c.value {
-				t.Fatalf("expected %v, got %v", c.value, v)
+			if v != c.value {
+				t.Fatalf(
+					"expected %v (%t), got %#v (%t)",
+					c.value,
+					c.value,
+					v,
+					v,
+				)
 			}
 		})
 	}

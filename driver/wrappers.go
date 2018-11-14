@@ -48,8 +48,20 @@ func (w wrapper) Scan(src interface{}) error {
 
 func (w wrapper) Value() (ret sqlDriver.Value, err error) {
 	v := reflect.Value(w)
-	if v.Type().Kind() == reflect.Ptr && (v.IsNil() || !v.Elem().IsValid()) {
-		return nil, nil
+	if v.Type().Kind() == reflect.Ptr {
+		if v.IsNil() || !v.Elem().IsValid() {
+			return nil, nil
+		}
+
+		v = v.Elem()
+	}
+
+	k := v.Kind()
+	switch {
+	case k >= reflect.Int && k <= reflect.Uint64:
+		return v.Int(), nil
+	case k == reflect.Float32 || k == reflect.Float64:
+		return v.Float(), nil
 	}
 
 	return v.Interface(), nil
