@@ -20,4 +20,6 @@ type Executable interface {
 	Update(data interface{}, where string, whereargs ...interface{}) (sql.Result, error)
 	Delete(data interface{}) (sql.Result, error)
 	RunBulk(b Bulk) (sql.Result, error)
+	Val(data interface{}) []interface{}
+	ValIns(data interface{}) []interface{}
 }

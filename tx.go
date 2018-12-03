@@ -21,6 +21,16 @@ func (tx *Tx) SQLIn(arr interface{}) (ret string) {
 	return tx.m.SQLIn(arr)
 }
 
+// Val is a wrapper for Manager.Val()
+func (tx *Tx) Val(data interface{}) []interface{} {
+	return tx.m.Val(data)
+}
+
+// ValIns is a wrapper for Manager.ValIns()
+func (tx *Tx) ValIns(data interface{}) []interface{} {
+	return tx.m.ValIns(data)
+}
+
 // Query makes SQL query and proxies it
 // It panics if type is not registered and auto register is not enabled.
 func (tx *Tx) Query(typ interface{}, qstr string, args ...interface{}) *Rows {
