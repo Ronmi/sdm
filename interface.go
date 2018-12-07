@@ -22,4 +22,5 @@ type Executable interface {
 	RunBulk(b Bulk) (sql.Result, error)
 	Val(data interface{}) []interface{}
 	ValIns(data interface{}) []interface{}
+	Stmt(stmt *Stmt) (ret *Stmt)
 }

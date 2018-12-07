@@ -801,3 +801,10 @@ func (m *Manager) AsArgs(arr interface{}) []interface{} {
 func (m *Manager) KeyAsArgs(arr interface{}) []interface{} {
 	return KeyAsArgs(arr)
 }
+
+// Stmt just returns what you passed in.
+//
+// It is here to implement Executable interface.
+func (m *Manager) Stmt(stmt *Stmt) (ret *Stmt) {
+	return stmt
+}
